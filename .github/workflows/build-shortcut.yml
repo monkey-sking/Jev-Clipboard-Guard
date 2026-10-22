@@ -1,0 +1,87 @@
+name: Build Jev Clipboard Guard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-shortcut-\${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+
+      - name: Check source contract
+        run: python3 scripts/check_source.py
+
+      - name: Test local share-code rules
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: false
+
+      - name: Fetch pinned Cherri compiler
+        env:
+          CHERRI_COMMIT: bcc0095754e2cc0baaeb4d93dae172b8153b4716
+        run: |
+          git clone --filter=blob:none https://github.com/electrikmilk/cherri.git "$RUNNER_TEMP/cherri"
+          git -C "$RUNNER_TEMP/cherri" checkout --detach "$CHERRI_COMMIT"
+          printf 'Pinned Cherri commit: '
+          git -C "$RUNNER_TEMP/cherri" rev-parse HEAD
+
+      - name: Build Cherri compiler
+        run: |
+          cd "$RUNNER_TEMP/cherri"
+          go build -o "$RUNNER_TEMP/cherri-bin" .
+          "$RUNNER_TEMP/cherri-bin" --version
+
+      - name: Compile unsigned validation artifact
+        run: |
+          mkdir -p dist
+          "$RUNNER_TEMP/cherri-bin" Jev_Clipboard_Guard.cherri --skip-sign --derive-uuids
+          test -s Jev_Clipboard_Guard_unsigned.shortcut
+          cp Jev_Clipboard_Guard_unsigned.shortcut dist/Jev_Clipboard_Guard_unsigned.plist
+          rm -f Jev_Clipboard_Guard_unsigned.shortcut
+
+      - name: Try to sign installable Shortcut with HubSign
+        id: sign
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        run: |
+          "$RUNNER_TEMP/cherri-bin" Jev_Clipboard_Guard.cherri --hubsign --derive-uuids --output dist/Jev_Clipboard_Guard.shortcut
+          if test -s dist/Jev_Clipboard_Guard.shortcut; then
+            echo 'signed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'signed=false' >> "$GITHUB_OUTPUT"
+            echo 'HubSign did not return a signed Shortcut; the unsigned plist artifact is still available.'
+          fi
+
+      - name: Upload unsigned compile artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jev-Clipboard-Guard-unsigned-plist
+          path: dist/Jev_Clipboard_Guard_unsigned.plist
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload signed Shortcut
+        if: steps.sign.outputs.signed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jev-Clipboard-Guard-shortcut
+          path: dist/Jev_Clipboard_Guard.shortcut
+          if-no-files-found: error
+          retention-days: 14
