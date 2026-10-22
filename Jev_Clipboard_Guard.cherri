@@ -13,15 +13,15 @@
 @apiKey = "REPLACE_WITH_JEV_API_KEY"
 @blankClipboard = " "
 @currentApp = ShortcutInput
-@clip = getClipboard()
-if !@clip {
+const clip = getClipboard()
+if !clip {
     showNotification("剪切板为空，没有需要检查的内容。", "Jev Clipboard Guard", false)
     stop()
 }
 
 // Local first-pass guard. Avoid treating every URL query parameter named "token" as a credential.
-@localRisk = matchText('(?i)(password|passwd|api[_-]?key|client[_-]?secret|secret|bearer|authorization|access[_-]?token|refresh[_-]?token|auth[_-]?token|id[_-]?token)\s*[:=：]\s*\S{4,}|(密码|密钥)\s*[:=：]\s*\S{4,}|验证码\s*[:：]?\s*\d{4,8}|(?:sk-[A-Za-z0-9_-]{16,}|ts[_-][A-Za-z0-9_-]{16,}|tsp[_-][A-Za-z0-9_-]{16,})|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----', @clip)
-if @localRisk {
+const localRisk = matchText('(?i)(password|passwd|api[_-]?key|client[_-]?secret|secret|bearer|authorization|access[_-]?token|refresh[_-]?token|auth[_-]?token|id[_-]?token)\s*[:=：]\s*\S{4,}|(密码|密钥)\s*[:=：]\s*\S{4,}|验证码\s*[:：]?\s*\d{4,8}|(?:sk-[A-Za-z0-9_-]{16,}|ts[_-][A-Za-z0-9_-]{16,}|tsp[_-][A-Za-z0-9_-]{16,})|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----', clip)
+if localRisk {
     setClipboard(@blankClipboard, true)
     showNotification("发现疑似密码、验证码或密钥。已用空格覆盖剪切板，内容未发送给 Jev。", "Jev Clipboard Guard", false)
     stop()
@@ -30,44 +30,44 @@ if @localRisk {
 // Recognize common Chinese-app share codes locally. Never send the raw share payload to Jev.
 @shareType = ""
 @needsShareConfirmation = false
-if matchText('(?i)(淘口令|￥[^￥]{3,}￥|¥[^¥]{3,}¥|m\.tb\.cn|s\.click\.taobao\.com|复制.{0,16}(淘宝|天猫)|打开.{0,10}(淘宝|天猫))', @clip) {
+if matchText('(?i)(淘口令|￥[^￥]{3,}￥|¥[^¥]{3,}¥|m\.tb\.cn|s\.click\.taobao\.com|复制.{0,16}(淘宝|天猫)|打开.{0,10}(淘宝|天猫))', clip) {
     @shareType = "淘宝/天猫"
 }
-@ruleMatch1 = matchText('(?i)(p\.pinduoduo\.com|mobile\.yangkeduo\.com|多多口令|复制.{0,16}拼多多|打开.{0,10}拼多多)', @clip)
-if @shareType == "" && @ruleMatch1 {
+const ruleMatch1 = matchText('(?i)(p\.pinduoduo\.com|mobile\.yangkeduo\.com|多多口令|复制.{0,16}拼多多|打开.{0,10}拼多多)', clip)
+if @shareType == "" && ruleMatch1 {
     @shareType = "拼多多"
 }
-@ruleMatch2 = matchText('(?i)(v\.douyin\.com|iesdouyin\.com|复制.{0,16}抖音|打开.{0,10}抖音)', @clip)
-if @shareType == "" && @ruleMatch2 {
+const ruleMatch2 = matchText('(?i)(v\.douyin\.com|iesdouyin\.com|复制.{0,16}抖音|打开.{0,10}抖音)', clip)
+if @shareType == "" && ruleMatch2 {
     @shareType = "抖音"
 }
-@ruleMatch3 = matchText('(?i)(xhslink\.com|xiaohongshu\.com|复制.{0,16}小红书|打开.{0,10}小红书)', @clip)
-if @shareType == "" && @ruleMatch3 {
+const ruleMatch3 = matchText('(?i)(xhslink\.com|xiaohongshu\.com|复制.{0,16}小红书|打开.{0,10}小红书)', clip)
+if @shareType == "" && ruleMatch3 {
     @shareType = "小红书"
 }
-@ruleMatch4 = matchText('(?i)(v\.kuaishou\.com|kuaishou\.com|复制.{0,16}快手|打开.{0,10}快手)', @clip)
-if @shareType == "" && @ruleMatch4 {
+const ruleMatch4 = matchText('(?i)(v\.kuaishou\.com|kuaishou\.com|复制.{0,16}快手|打开.{0,10}快手)', clip)
+if @shareType == "" && ruleMatch4 {
     @shareType = "快手"
 }
-@ruleMatch5 = matchText('(?i)(u\.jd\.com|3\.cn/|item\.m\.jd\.com|京东口令|复制.{0,16}京东|打开.{0,10}京东)', @clip)
-if @shareType == "" && @ruleMatch5 {
+const ruleMatch5 = matchText('(?i)(u\.jd\.com|3\.cn/|item\.m\.jd\.com|京东口令|复制.{0,16}京东|打开.{0,10}京东)', clip)
+if @shareType == "" && ruleMatch5 {
     @shareType = "京东"
 }
-@ruleMatch6 = matchText('(?i)(dpurl\.cn|dianping\.com|复制.{0,16}(美团|大众点评)|打开.{0,10}(美团|大众点评))', @clip)
-if @shareType == "" && @ruleMatch6 {
+const ruleMatch6 = matchText('(?i)(dpurl\.cn|dianping\.com|复制.{0,16}(美团|大众点评)|打开.{0,10}(美团|大众点评))', clip)
+if @shareType == "" && ruleMatch6 {
     @shareType = "美团/大众点评"
 }
-@ruleMatch7 = matchText('(?i)(b23\.tv|bilibili\.com|复制.{0,16}(哔哩哔哩|B站)|打开.{0,10}(哔哩哔哩|B站))', @clip)
-if @shareType == "" && @ruleMatch7 {
+const ruleMatch7 = matchText('(?i)(b23\.tv|bilibili\.com|复制.{0,16}(哔哩哔哩|B站)|打开.{0,10}(哔哩哔哩|B站))', clip)
+if @shareType == "" && ruleMatch7 {
     @shareType = "哔哩哔哩"
 }
-@ruleMatch8 = matchText('(?i)(weixin://|wxp://|mp\.weixin\.qq\.com|qr\.alipay\.com|alipays://|支付宝口令|微信口令|复制.{0,16}(微信|支付宝)|打开.{0,10}(微信|支付宝))', @clip)
-if @shareType == "" && @ruleMatch8 {
+const ruleMatch8 = matchText('(?i)(weixin://|wxp://|mp\.weixin\.qq\.com|qr\.alipay\.com|alipays://|支付宝口令|微信口令|复制.{0,16}(微信|支付宝)|打开.{0,10}(微信|支付宝))', clip)
+if @shareType == "" && ruleMatch8 {
     @shareType = "微信/支付宝"
     @needsShareConfirmation = true
 }
-@ruleMatch9 = matchText('(?i)(复制.{0,20}(口令|分享码|邀请码|这条消息|此消息)|分享口令|分享码|邀请码)', @clip)
-if @shareType == "" && @ruleMatch9 {
+const ruleMatch9 = matchText('(?i)(复制.{0,20}(口令|分享码|邀请码|这条消息|此消息)|分享口令|分享码|邀请码)', clip)
+if @shareType == "" && ruleMatch9 {
     @shareType = "未识别的分享内容"
 }
 
@@ -76,7 +76,7 @@ if @shareType != "" {
     @isShoppingShare = false
     // Cross-app consumers: a marketplace share payload may intentionally be opened by a price-comparison app.
     // Keep this allowlist conservative and edit names to match the exact app names passed by your automations.
-    @trustedShoppingConsumer = matchText('(?i)(慢慢买|什么值得买|惠惠购物助手|比价狗)', @currentApp)
+    const trustedShoppingConsumer = matchText('(?i)(慢慢买|什么值得买|惠惠购物助手|比价狗)', @currentApp)
     if @shareType == "淘宝/天猫" {
         @isShoppingShare = true
     }
@@ -86,36 +86,36 @@ if @shareType != "" {
     if @shareType == "京东" {
         @isShoppingShare = true
     }
-    @ruleMatch10 = matchText('(?i)(淘宝|天猫|taobao|tmall)', @currentApp)
-    if @shareType == "淘宝/天猫" && @ruleMatch10 {
+    const ruleMatch10 = matchText('(?i)(淘宝|天猫|taobao|tmall)', @currentApp)
+    if @shareType == "淘宝/天猫" && ruleMatch10 {
         @targetMatches = true
     }
-    @ruleMatch11 = matchText('(?i)(拼多多|pinduoduo|yangkeduo)', @currentApp)
-    if @shareType == "拼多多" && @ruleMatch11 {
+    const ruleMatch11 = matchText('(?i)(拼多多|pinduoduo|yangkeduo)', @currentApp)
+    if @shareType == "拼多多" && ruleMatch11 {
         @targetMatches = true
     }
-    @ruleMatch12 = matchText('(?i)(抖音|douyin)', @currentApp)
-    if @shareType == "抖音" && @ruleMatch12 {
+    const ruleMatch12 = matchText('(?i)(抖音|douyin)', @currentApp)
+    if @shareType == "抖音" && ruleMatch12 {
         @targetMatches = true
     }
-    @ruleMatch13 = matchText('(?i)(小红书|xiaohongshu|xhs)', @currentApp)
-    if @shareType == "小红书" && @ruleMatch13 {
+    const ruleMatch13 = matchText('(?i)(小红书|xiaohongshu|xhs)', @currentApp)
+    if @shareType == "小红书" && ruleMatch13 {
         @targetMatches = true
     }
-    @ruleMatch14 = matchText('(?i)(快手|kuaishou)', @currentApp)
-    if @shareType == "快手" && @ruleMatch14 {
+    const ruleMatch14 = matchText('(?i)(快手|kuaishou)', @currentApp)
+    if @shareType == "快手" && ruleMatch14 {
         @targetMatches = true
     }
-    @ruleMatch15 = matchText('(?i)(京东|jd)', @currentApp)
-    if @shareType == "京东" && @ruleMatch15 {
+    const ruleMatch15 = matchText('(?i)(京东|jd)', @currentApp)
+    if @shareType == "京东" && ruleMatch15 {
         @targetMatches = true
     }
-    @ruleMatch16 = matchText('(?i)(美团|大众点评|meituan|dianping)', @currentApp)
-    if @shareType == "美团/大众点评" && @ruleMatch16 {
+    const ruleMatch16 = matchText('(?i)(美团|大众点评|meituan|dianping)', @currentApp)
+    if @shareType == "美团/大众点评" && ruleMatch16 {
         @targetMatches = true
     }
-    @ruleMatch17 = matchText('(?i)(哔哩哔哩|bilibili|B站)', @currentApp)
-    if @shareType == "哔哩哔哩" && @ruleMatch17 {
+    const ruleMatch17 = matchText('(?i)(哔哩哔哩|bilibili|B站)', @currentApp)
+    if @shareType == "哔哩哔哩" && ruleMatch17 {
         @targetMatches = true
     }
 
@@ -123,7 +123,7 @@ if @shareType != "" {
         showNotification("识别到{@shareType}分享内容，目标 APP 匹配。剪切板已保留；原始口令未发送给 Jev。", "Jev Clipboard Guard", false)
         stop()
     } else {
-        if @isShoppingShare && @trustedShoppingConsumer && !@needsShareConfirmation {
+        if @isShoppingShare && trustedShoppingConsumer && !@needsShareConfirmation {
             showNotification("识别到{@shareType}商品分享内容，当前 APP 命中比价/购物工具白名单。剪切板已保留；原始内容未发送给 Jev。", "Jev Clipboard Guard", false)
             stop()
         } else {
@@ -149,7 +149,7 @@ if @apiKey == "REPLACE_WITH_JEV_API_KEY" {
     "model": "jev-latest",
     "state": {
         "current_app": "{@currentApp}",
-        "clipboard_text": "{@clip}"
+        "clipboard_text": "{clip}"
     },
     "questions": {
         "decision": {
