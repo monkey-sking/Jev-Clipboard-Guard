@@ -154,13 +154,13 @@ const decisionDictionary = getDictionary(decisionNode)
 const chosenDecision = getValue(decisionDictionary, "choice")
 const confidenceValue = getValue(decisionDictionary, "confidence")
 @decision = "{chosenDecision}"
-@confidence = confidenceValue.number
+const confidenceNumber = number(confidenceValue)
 
 if @decision == "DENY" {
     setClipboard(@blankClipboard, true)
     showNotification("Jev 判定：拒绝。已用空格覆盖剪切板。", "Jev Clipboard Guard", false)
 } else {
-    if @decision == "ALLOW" && @confidence >= 0.85 {
+    if @decision == "ALLOW" && confidenceNumber >= 0.85 {
         showNotification("Jev 判定：允许。剪切板保持不变。", "Jev Clipboard Guard", false)
     } else {
         menu "Jev 无法高置信度自动放行，请选择" {
