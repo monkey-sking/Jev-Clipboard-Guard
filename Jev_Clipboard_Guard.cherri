@@ -32,7 +32,9 @@ if localRiskText != "" {
 // Recognize common Chinese-app share codes locally. Never send the raw share payload to Jev.
 @shareType = ""
 @needsShareConfirmation = false
-if matchText('(?i)(淘口令|￥[^￥]{3,}￥|¥[^¥]{3,}¥|m\.tb\.cn|s\.click\.taobao\.com|复制.{0,16}(淘宝|天猫)|打开.{0,10}(淘宝|天猫))', clip) {
+const ruleMatch0 = matchText('(?i)(淘口令|￥[^￥]{3,}￥|¥[^¥]{3,}¥|m\.tb\.cn|s\.click\.taobao\.com|复制.{0,16}(淘宝|天猫)|打开.{0,10}(淘宝|天猫))', clip)
+const ruleMatch0Text = "{ruleMatch0}"
+if ruleMatch0Text != "" {
     @shareType = "淘宝/天猫"
 }
 const ruleMatch1 = matchText('(?i)(p\.pinduoduo\.com|mobile\.yangkeduo\.com|多多口令|复制.{0,16}拼多多|打开.{0,10}拼多多)', clip)
