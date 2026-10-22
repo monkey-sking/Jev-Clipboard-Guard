@@ -1,0 +1,13 @@
+[
+  {"name":"Taobao token marker", "text":"复制这条信息 ￥test-share-code￥ 打开淘宝"},
+  {"name":"Taobao short URL", "text":"https://m.tb.cn/h.example"},
+  {"name":"Pinduoduo share URL", "text":"https://p.pinduoduo.com/example"},
+  {"name":"Douyin share URL", "text":"https://v.douyin.com/example/"},
+  {"name":"Xiaohongshu share URL", "text":"https://www.xiaohongshu.com/explore/example"},
+  {"name":"Kuaishou share URL", "text":"https://v.kuaishou.com/example"},
+  {"name":"JD share URL", "text":"https://u.jd.com/example"},
+  {"name":"Meituan/Dianping URL", "text":"https://www.dianping.com/shop/example"},
+  {"name":"Bilibili short URL", "text":"https://b23.tv/example"},
+  {"name":"WeChat link needs confirmation", "text":"https://mp.weixin.qq.com/s/example"},
+  {"name":"Alipay link needs confirmation", "text":"https://qr.alipay.com/example"}
+]
