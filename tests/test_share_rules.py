@@ -10,7 +10,7 @@ CASES = json.loads((ROOT / "tests" / "share-rule-cases.json").read_text(encoding
 
 def share_patterns():
     block = SOURCE.split('@shareType = ""', 1)[1].split('if @shareType != ""', 1)[0]
-    return [pattern for pattern in re.findall(r"matchText\('((?:\\.|[^'])*)', @clip\)", block)]
+    return [pattern for pattern in re.findall(r"matchText\('((?:\\.|[^'])*)', clip\)", block)]
 
 
 class ShareRuleTests(unittest.TestCase):
