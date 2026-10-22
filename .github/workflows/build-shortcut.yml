@@ -101,7 +101,10 @@ jobs:
 
       - name: Sign for anyone using Apple's shortcuts CLI
         run: |
-          shortcuts sign -i dist/Jev_Clipboard_Guard_unsigned.plist -o dist/Jev_Clipboard_Guard.shortcut -m anyone
+          cp dist/Jev_Clipboard_Guard_unsigned.plist dist/Jev_Clipboard_Guard_unsigned.shortcut
+          file dist/Jev_Clipboard_Guard_unsigned.shortcut
+          plutil -lint dist/Jev_Clipboard_Guard_unsigned.shortcut
+          shortcuts sign -i dist/Jev_Clipboard_Guard_unsigned.shortcut -o dist/Jev_Clipboard_Guard.shortcut -m anyone
           test -s dist/Jev_Clipboard_Guard.shortcut
           file dist/Jev_Clipboard_Guard.shortcut
 
