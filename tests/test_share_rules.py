@@ -33,7 +33,7 @@ class ShareRuleTests(unittest.TestCase):
                 self.assertFalse(any(pattern.search(text) for pattern in patterns))
 
     def test_cross_app_shopping_allowlist_is_present(self):
-        match = re.search(r"@trustedShoppingConsumer = matchText\('([^']+)'", SOURCE)
+        match = re.search(r"const trustedShoppingConsumer = matchText\('([^']+)'", SOURCE)
         self.assertIsNotNone(match)
         allowlist = re.compile(match.group(1))
         for name in ("慢慢买", "什么值得买", "惠惠购物助手", "比价狗"):
