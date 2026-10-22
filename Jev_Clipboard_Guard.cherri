@@ -33,32 +33,41 @@ if @localRisk {
 if matchText('(?i)(淘口令|￥[^￥]{3,}￥|¥[^¥]{3,}¥|m\.tb\.cn|s\.click\.taobao\.com|复制.{0,16}(淘宝|天猫)|打开.{0,10}(淘宝|天猫))', @clip) {
     @shareType = "淘宝/天猫"
 }
-if @shareType == "" && matchText('(?i)(p\.pinduoduo\.com|mobile\.yangkeduo\.com|多多口令|复制.{0,16}拼多多|打开.{0,10}拼多多)', @clip) {
+@ruleMatch1 = matchText('(?i)(p\.pinduoduo\.com|mobile\.yangkeduo\.com|多多口令|复制.{0,16}拼多多|打开.{0,10}拼多多)', @clip)
+if @shareType == "" && @ruleMatch1 {
     @shareType = "拼多多"
 }
-if @shareType == "" && matchText('(?i)(v\.douyin\.com|iesdouyin\.com|复制.{0,16}抖音|打开.{0,10}抖音)', @clip) {
+@ruleMatch2 = matchText('(?i)(v\.douyin\.com|iesdouyin\.com|复制.{0,16}抖音|打开.{0,10}抖音)', @clip)
+if @shareType == "" && @ruleMatch2 {
     @shareType = "抖音"
 }
-if @shareType == "" && matchText('(?i)(xhslink\.com|xiaohongshu\.com|复制.{0,16}小红书|打开.{0,10}小红书)', @clip) {
+@ruleMatch3 = matchText('(?i)(xhslink\.com|xiaohongshu\.com|复制.{0,16}小红书|打开.{0,10}小红书)', @clip)
+if @shareType == "" && @ruleMatch3 {
     @shareType = "小红书"
 }
-if @shareType == "" && matchText('(?i)(v\.kuaishou\.com|kuaishou\.com|复制.{0,16}快手|打开.{0,10}快手)', @clip) {
+@ruleMatch4 = matchText('(?i)(v\.kuaishou\.com|kuaishou\.com|复制.{0,16}快手|打开.{0,10}快手)', @clip)
+if @shareType == "" && @ruleMatch4 {
     @shareType = "快手"
 }
-if @shareType == "" && matchText('(?i)(u\.jd\.com|3\.cn/|item\.m\.jd\.com|京东口令|复制.{0,16}京东|打开.{0,10}京东)', @clip) {
+@ruleMatch5 = matchText('(?i)(u\.jd\.com|3\.cn/|item\.m\.jd\.com|京东口令|复制.{0,16}京东|打开.{0,10}京东)', @clip)
+if @shareType == "" && @ruleMatch5 {
     @shareType = "京东"
 }
-if @shareType == "" && matchText('(?i)(dpurl\.cn|dianping\.com|复制.{0,16}(美团|大众点评)|打开.{0,10}(美团|大众点评))', @clip) {
+@ruleMatch6 = matchText('(?i)(dpurl\.cn|dianping\.com|复制.{0,16}(美团|大众点评)|打开.{0,10}(美团|大众点评))', @clip)
+if @shareType == "" && @ruleMatch6 {
     @shareType = "美团/大众点评"
 }
-if @shareType == "" && matchText('(?i)(b23\.tv|bilibili\.com|复制.{0,16}(哔哩哔哩|B站)|打开.{0,10}(哔哩哔哩|B站))', @clip) {
+@ruleMatch7 = matchText('(?i)(b23\.tv|bilibili\.com|复制.{0,16}(哔哩哔哩|B站)|打开.{0,10}(哔哩哔哩|B站))', @clip)
+if @shareType == "" && @ruleMatch7 {
     @shareType = "哔哩哔哩"
 }
-if @shareType == "" && matchText('(?i)(weixin://|wxp://|mp\.weixin\.qq\.com|qr\.alipay\.com|alipays://|支付宝口令|微信口令|复制.{0,16}(微信|支付宝)|打开.{0,10}(微信|支付宝))', @clip) {
+@ruleMatch8 = matchText('(?i)(weixin://|wxp://|mp\.weixin\.qq\.com|qr\.alipay\.com|alipays://|支付宝口令|微信口令|复制.{0,16}(微信|支付宝)|打开.{0,10}(微信|支付宝))', @clip)
+if @shareType == "" && @ruleMatch8 {
     @shareType = "微信/支付宝"
     @needsShareConfirmation = true
 }
-if @shareType == "" && matchText('(?i)(复制.{0,20}(口令|分享码|邀请码|这条消息|此消息)|分享口令|分享码|邀请码)', @clip) {
+@ruleMatch9 = matchText('(?i)(复制.{0,20}(口令|分享码|邀请码|这条消息|此消息)|分享口令|分享码|邀请码)', @clip)
+if @shareType == "" && @ruleMatch9 {
     @shareType = "未识别的分享内容"
 }
 
@@ -77,28 +86,36 @@ if @shareType != "" {
     if @shareType == "京东" {
         @isShoppingShare = true
     }
-    if @shareType == "淘宝/天猫" && matchText('(?i)(淘宝|天猫|taobao|tmall)', @currentApp) {
+    @ruleMatch10 = matchText('(?i)(淘宝|天猫|taobao|tmall)', @currentApp)
+    if @shareType == "淘宝/天猫" && @ruleMatch10 {
         @targetMatches = true
     }
-    if @shareType == "拼多多" && matchText('(?i)(拼多多|pinduoduo|yangkeduo)', @currentApp) {
+    @ruleMatch11 = matchText('(?i)(拼多多|pinduoduo|yangkeduo)', @currentApp)
+    if @shareType == "拼多多" && @ruleMatch11 {
         @targetMatches = true
     }
-    if @shareType == "抖音" && matchText('(?i)(抖音|douyin)', @currentApp) {
+    @ruleMatch12 = matchText('(?i)(抖音|douyin)', @currentApp)
+    if @shareType == "抖音" && @ruleMatch12 {
         @targetMatches = true
     }
-    if @shareType == "小红书" && matchText('(?i)(小红书|xiaohongshu|xhs)', @currentApp) {
+    @ruleMatch13 = matchText('(?i)(小红书|xiaohongshu|xhs)', @currentApp)
+    if @shareType == "小红书" && @ruleMatch13 {
         @targetMatches = true
     }
-    if @shareType == "快手" && matchText('(?i)(快手|kuaishou)', @currentApp) {
+    @ruleMatch14 = matchText('(?i)(快手|kuaishou)', @currentApp)
+    if @shareType == "快手" && @ruleMatch14 {
         @targetMatches = true
     }
-    if @shareType == "京东" && matchText('(?i)(京东|jd)', @currentApp) {
+    @ruleMatch15 = matchText('(?i)(京东|jd)', @currentApp)
+    if @shareType == "京东" && @ruleMatch15 {
         @targetMatches = true
     }
-    if @shareType == "美团/大众点评" && matchText('(?i)(美团|大众点评|meituan|dianping)', @currentApp) {
+    @ruleMatch16 = matchText('(?i)(美团|大众点评|meituan|dianping)', @currentApp)
+    if @shareType == "美团/大众点评" && @ruleMatch16 {
         @targetMatches = true
     }
-    if @shareType == "哔哩哔哩" && matchText('(?i)(哔哩哔哩|bilibili|B站)', @currentApp) {
+    @ruleMatch17 = matchText('(?i)(哔哩哔哩|bilibili|B站)', @currentApp)
+    if @shareType == "哔哩哔哩" && @ruleMatch17 {
         @targetMatches = true
     }
 
