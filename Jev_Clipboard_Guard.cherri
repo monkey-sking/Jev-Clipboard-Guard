@@ -1,7 +1,7 @@
 #define name Jev Clipboard Guard
 #define color blue
 #define glyph shield
-#define version 18.0
+#define version 18
 #define noinput stopwith "请从“打开 App”自动化运行，并传入目标 App 名称。"
 #include 'actions/sharing'
 #include 'actions/web'
