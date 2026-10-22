@@ -1,0 +1,13 @@
+.DS_Store
+*.shortcut
+*_unsigned.shortcut
+*.plist
+/build/
+/dist/
+.env
+.env.*
+!.env.example
+*secret*
+*credential*
+__pycache__/
+*.py[cod]
