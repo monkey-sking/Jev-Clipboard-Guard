@@ -1,0 +1,3 @@
+Cherri Playground: https://playground.cherrilang.org/
+
+Open the playground, paste the contents of Jev_Clipboard_Guard.cherri, compile, and export the signed Shortcut. Automated build is configured in .github/workflows/build-shortcut.yml.
