@@ -34,7 +34,7 @@ https://api.typesafe.ai/v1/systemone
 
 ## GitHub Actions 自动编译
 
-每次推送到 `main`、创建 Pull Request 或手动运行 Actions 时，工作流会运行静态检查、构建固定 commit 的 Cherri 编译器、编译未签名的验证产物，并尝试通过 RoutineHub HubSign 生成可导入的 `.shortcut`。签名服务不可用时仍保留未签名编译产物；未签名 plist 仅用于验证编译，不应误当成可直接安装的快捷指令。
+每次推送到 `main`、创建 Pull Request 或手动运行 Actions 时，工作流运行静态检查、构建固定 commit 的 Cherri 编译器、编译未签名的验证产物，并尝试通过 RoutineHub HubSign 生成可导入的 `.shortcut`。**2026-10-22 已验证 264 个动作成功编译，未签名产物已上传；远程签名因服务返回 HTML 验证页面而失败。** GitHub 公共 macOS Runner 没有登录你的 iCloud，也无法直接使用 `shortcuts sign`。因此构建是否绿色不应取代对签名产物的检查。
 
 ## 本地检查
 
@@ -45,11 +45,27 @@ python3 -m unittest discover -s tests -p 'test_*.py' -v
 
 ## 安装与自动化
 
-1. 从 Actions 下载 `Jev-Clipboard-Guard-shortcut` artifact（仅在签名成功时出现）。
-2. 在 iPhone「文件」中打开签名后的 `.shortcut` 并导入快捷指令。
-3. 填入自己的 API Key；必要时修改 `apiUrl`。
-4. 为每个目标 App 创建“打开 App”个人自动化，将 App 名称作为文本输入传给 `Jev Clipboard Guard`。
-5. 先用无敏感信息的测试文本和示例分享链接测试，确认不会误清空重要剪切板内容后再考虑日常使用。
+### 已编译的快捷指令（需签名）
+
+1. 从 [GitHub Actions 的成功编译记录](https://github.com/monkey-sking/Jev-Clipboard-Guard/actions/runs/39856737592) 下载 `Jev-Clipboard-Guard-unsigned-plist`，解压得到 `Jev_Clipboard_Guard_unsigned.plist`，并把扩展名改为 `.shortcut`。
+2. 在 **已登录 iCloud 的 Mac** 上，将该未签名文件与 [scripts/sign_on_mac.command](scripts/sign_on_mac.command) 放到同一目录，文件命名为 `Jev_Clipboard_Guard_unsigned.shortcut`，运行 `zsh ./sign_on_mac.command`（也可以手动运行下方命令）。
+3. 将生成的 **已签名** `Jev_Clipboard_Guard.shortcut` 用 AirDrop 或 iCloud Drive 发送到 iPhone，在「文件」中打开并添加到快捷指令。
+4. 编辑导入后的快捷指令，填入自己的 Jev API Key，必要时修改 `apiUrl`。
+5. 为每个目标 App 创建「打开 App」个人自动化，把该 App 的实际名称作为文本传给此快捷指令。
+6. 先用**不含个人秘密**的测试数据验证分享码和比价 App 场景。
+
+```bash
+shortcuts sign -i Jev_Clipboard_Guard_unsigned.shortcut -o Jev_Clipboard_Guard.shortcut -m anyone
+```
+
+目前尚未完成 iPhone 真机验证。**未签名的 XML plist 即使改扩展名，也不能直接当成已签名的可安装产物。**
+
+### 签名为什么没有自动完成？
+
+- 2026-10-22 的 GitHub Actions 编译已经通过，原始未签名 XML plist 结构合法。
+- RoutineHub HubSign 旧接口返回了 HTML 验证页面，而非以 `AEA1` 开头的已签名二进制；服务可用性由第三方控制。
+- GitHub 托管 macOS Runner 运行 Apple CLI 时提示需要先登录 iCloud。
+- 自动签名的后续方案是由你**已登录 iCloud 的 Mac** 执行本地签名，或配置有权限的远程签名服务。不要在公共仓库上传 Apple ID 或任何 API 密钥。
 
 ## 现有限制与风险
 
@@ -66,6 +82,6 @@ python3 -m unittest discover -s tests -p 'test_*.py' -v
 
 ## Project status
 
-- **Prepared:** Cherri source, README, static checks, GitHub Actions workflow.
-- **Observed:** source contract checks and share-rule unit tests pass locally.
-- **Not yet verified:** Cherri compilation in CI, HubSign signing, importing/running on a real iPhone.
+- **Verified:** GitHub Actions 已完成 Cherri v2.3.0 源码编译，生成 264 个动作的未签名 XML plist；静态检查和分享口令测试通过。
+- **Observed:** HubSign 旧接口返回 HTML 验证页面，GitHub macOS Runner 缺少 iCloud 登录，无法完成签名。
+- **Not yet verified:** 使用个人 Mac 进行苹果签名、在 iPhone 导入和实际运行、Jev 线上请求与剪切板保护时序。
