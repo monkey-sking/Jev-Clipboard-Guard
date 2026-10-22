@@ -86,3 +86,29 @@ jobs:
           path: dist/Jev_Clipboard_Guard.shortcut
           if-no-files-found: error
           retention-days: 14
+
+  sign-on-macos:
+    name: Sign Shortcut on macOS
+    needs: compile
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - name: Download unsigned Shortcut plist
+        uses: actions/download-artifact@v4
+        with:
+          name: Jev-Clipboard-Guard-unsigned-plist
+          path: dist
+
+      - name: Sign for anyone using Apple's shortcuts CLI
+        run: |
+          shortcuts sign -i dist/Jev_Clipboard_Guard_unsigned.plist -o dist/Jev_Clipboard_Guard.shortcut -m anyone
+          test -s dist/Jev_Clipboard_Guard.shortcut
+          file dist/Jev_Clipboard_Guard.shortcut
+
+      - name: Upload installable signed Shortcut
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jev-Clipboard-Guard-signed-macos
+          path: dist/Jev_Clipboard_Guard.shortcut
+          if-no-files-found: error
+          retention-days: 14
