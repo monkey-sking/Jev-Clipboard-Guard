@@ -70,6 +70,14 @@ jobs:
             echo 'HubSign did not return a signed Shortcut; the unsigned plist artifact is still available.'
           fi
 
+      - name: Sign directly using HubSign API
+        id: sign_direct
+        if: github.event_name != 'pull_request' && steps.sign.outputs.signed != 'true'
+        continue-on-error: true
+        run: |
+          python3 scripts/sign_hubsign.py dist/Jev_Clipboard_Guard_unsigned.plist dist/Jev_Clipboard_Guard.shortcut
+          echo 'signed=true' >> "$GITHUB_OUTPUT"
+
       - name: Upload unsigned compile artifact
         uses: actions/upload-artifact@v4
         with:
@@ -79,7 +87,7 @@ jobs:
           retention-days: 14
 
       - name: Upload signed Shortcut
-        if: steps.sign.outputs.signed == 'true'
+        if: steps.sign.outputs.signed == 'true' || steps.sign_direct.outputs.signed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Jev-Clipboard-Guard-shortcut
@@ -87,31 +95,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  sign-on-macos:
-    name: Sign Shortcut on macOS
-    needs: compile
-    runs-on: macos-15
-    timeout-minutes: 10
-    steps:
-      - name: Download unsigned Shortcut plist
-        uses: actions/download-artifact@v4
-        with:
-          name: Jev-Clipboard-Guard-unsigned-plist
-          path: dist
 
-      - name: Sign for anyone using Apple's shortcuts CLI
+      - name: Require signed Shortcut on main branch
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
-          cp dist/Jev_Clipboard_Guard_unsigned.plist dist/Jev_Clipboard_Guard_unsigned.shortcut
-          file dist/Jev_Clipboard_Guard_unsigned.shortcut
-          plutil -lint dist/Jev_Clipboard_Guard_unsigned.shortcut
-          shortcuts sign -i dist/Jev_Clipboard_Guard_unsigned.shortcut -o dist/Jev_Clipboard_Guard.shortcut -m anyone
           test -s dist/Jev_Clipboard_Guard.shortcut
-          file dist/Jev_Clipboard_Guard.shortcut
-
-      - name: Upload installable signed Shortcut
-        uses: actions/upload-artifact@v4
-        with:
-          name: Jev-Clipboard-Guard-signed-macos
-          path: dist/Jev_Clipboard_Guard.shortcut
-          if-no-files-found: error
-          retention-days: 14
+          head -c 4 dist/Jev_Clipboard_Guard.shortcut | grep -q 'AEA1'
