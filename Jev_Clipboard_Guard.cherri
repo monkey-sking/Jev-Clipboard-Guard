@@ -131,8 +131,8 @@ if @apiKey == "REPLACE_WITH_JEV_API_KEY" {
 @payload = {
     "model": "jev-latest",
     "state": {
-        "current_app": @currentApp,
-        "clipboard_text": @clip
+        "current_app": "{@currentApp}",
+        "clipboard_text": "{@clip}"
     },
     "questions": {
         "decision": {
