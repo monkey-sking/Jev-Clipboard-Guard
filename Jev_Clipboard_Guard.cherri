@@ -11,6 +11,7 @@
 // apiUrl is the full POST endpoint; default is the official Jev API.
 @apiUrl = "https://api.typesafe.ai/v1/systemone"
 @apiKey = "REPLACE_WITH_JEV_API_KEY"
+@blankClipboard = " "
 @currentApp = ShortcutInput
 @clip = getClipboard()
 if !@clip {
@@ -21,7 +22,7 @@ if !@clip {
 // Local first-pass guard. Avoid treating every URL query parameter named "token" as a credential.
 @localRisk = matchText('(?i)(password|passwd|api[_-]?key|client[_-]?secret|secret|bearer|authorization|access[_-]?token|refresh[_-]?token|auth[_-]?token|id[_-]?token)\s*[:=：]\s*\S{4,}|(密码|密钥)\s*[:=：]\s*\S{4,}|验证码\s*[:：]?\s*\d{4,8}|(?:sk-[A-Za-z0-9_-]{16,}|ts[_-][A-Za-z0-9_-]{16,}|tsp[_-][A-Za-z0-9_-]{16,})|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----', @clip)
 if @localRisk {
-    setClipboard(" ", true)
+    setClipboard(@blankClipboard, true)
     showNotification("发现疑似密码、验证码或密钥。已用空格覆盖剪切板，内容未发送给 Jev。", "Jev Clipboard Guard", false)
     stop()
 }
@@ -114,7 +115,7 @@ if @shareType != "" {
                 item "清空剪切板（会丢失分享内容）": "CLEAR"
             }
             if shareChoice == "CLEAR" {
-                setClipboard(" ", true)
+                setClipboard(@blankClipboard, true)
                 showNotification("已用空格覆盖剪切板。注意：如果目标 APP 已经读取过内容，这不能撤回已发生的读取。", "Jev Clipboard Guard", false)
             } else {
                 showNotification("已保留分享内容。它仍可能被当前 APP 读取；原始内容未发送给 Jev。", "Jev Clipboard Guard", false)
@@ -154,7 +155,7 @@ if @apiKey == "REPLACE_WITH_JEV_API_KEY" {
 @confidence = @response['answers']['decision']['confidence'].number
 
 if @decision == "DENY" {
-    setClipboard(" ", true)
+    setClipboard(@blankClipboard, true)
     showNotification("Jev 判定：拒绝。已用空格覆盖剪切板。", "Jev Clipboard Guard", false)
 } else {
     if @decision == "ALLOW" && @confidence >= 0.85 {
@@ -167,7 +168,7 @@ if @decision == "DENY" {
         if userChoice == "ALLOW" {
             showNotification("你已确认保留剪切板。", "Jev Clipboard Guard", false)
         } else {
-            setClipboard(" ", true)
+            setClipboard(@blankClipboard, true)
             showNotification("你已拒绝；剪切板已用空格覆盖。", "Jev Clipboard Guard", false)
         }
     }
