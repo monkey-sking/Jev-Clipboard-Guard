@@ -110,15 +110,12 @@ if @shareType != "" {
             showNotification("识别到{@shareType}商品分享内容，当前 APP 命中比价/购物工具白名单。剪切板已保留；原始内容未发送给 Jev。", "Jev Clipboard Guard", false)
             stop()
         } else {
-            const shareChoice = menu "识别到{@shareType}，请决定如何处理" {
-                item "保留分享内容（可能被当前 APP 读取）": "KEEP"
-                item "清空剪切板（会丢失分享内容）": "CLEAR"
-            }
-            if shareChoice == "CLEAR" {
-                setClipboard(@blankClipboard, true)
-                showNotification("已用空格覆盖剪切板。注意：如果目标 APP 已经读取过内容，这不能撤回已发生的读取。", "Jev Clipboard Guard", false)
-            } else {
-                showNotification("已保留分享内容。它仍可能被当前 APP 读取；原始内容未发送给 Jev。", "Jev Clipboard Guard", false)
+            menu "识别到{@shareType}，请决定如何处理" {
+                item "保留分享内容（可能被当前 APP 读取）":
+                    showNotification("已保留分享内容。它仍可能被当前 APP 读取；原始内容未发送给 Jev。", "Jev Clipboard Guard", false)
+                item "清空剪切板（会丢失分享内容）":
+                    setClipboard(@blankClipboard, true)
+                    showNotification("已用空格覆盖剪切板。注意：如果目标 APP 已经读取过内容，这不能撤回已发生的读取。", "Jev Clipboard Guard", false)
             }
             stop()
         }
@@ -161,15 +158,12 @@ if @decision == "DENY" {
     if @decision == "ALLOW" && @confidence >= 0.85 {
         showNotification("Jev 判定：允许。剪切板保持不变。", "Jev Clipboard Guard", false)
     } else {
-        const userChoice = menu "Jev 无法高置信度自动放行，请选择" {
-            item "保留剪切板（本次允许）": "ALLOW"
-            item "清空剪切板（本次拒绝）": "DENY"
-        }
-        if userChoice == "ALLOW" {
-            showNotification("你已确认保留剪切板。", "Jev Clipboard Guard", false)
-        } else {
-            setClipboard(@blankClipboard, true)
-            showNotification("你已拒绝；剪切板已用空格覆盖。", "Jev Clipboard Guard", false)
+        menu "Jev 无法高置信度自动放行，请选择" {
+            item "保留剪切板（本次允许）":
+                showNotification("你已确认保留剪切板。", "Jev Clipboard Guard", false)
+            item "清空剪切板（本次拒绝）":
+                setClipboard(@blankClipboard, true)
+                showNotification("你已拒绝；剪切板已用空格覆盖。", "Jev Clipboard Guard", false)
         }
     }
 }
