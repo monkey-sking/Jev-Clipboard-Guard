@@ -14,7 +14,7 @@ checks = {
     "sensitive content is checked locally before network request": s.index('@localRisk = matchText') < s.index('@response = jsonRequest'),
     "share payload is handled before sending ordinary text to Jev": s.index('if @shareType != ""') < s.index('@response = jsonRequest'),
     "shopping-consumer allowlist exists for cross-app product shares": '@trustedShoppingConsumer = matchText' in s,
-    "uncertain Jev decision prompts the user": 'ASK_USER' in s and 'const userChoice = menu' in s,
+    "uncertain Jev decision prompts the user": 'ASK_USER' in s and 'menu "Jev 无法高置信度自动放行，请选择"' in s,
 }
 failed = [name for name, ok in checks.items() if not ok]
 for name, ok in checks.items():
