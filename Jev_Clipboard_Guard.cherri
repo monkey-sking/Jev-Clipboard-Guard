@@ -146,8 +146,15 @@ if @apiKey == "REPLACE_WITH_JEV_API_KEY" {
         }
     }
 }, {"Authorization": "Bearer {@apiKey}", "Content-Type": "application/json"})
-@decision = @response['answers']['decision']['choice']
-@confidence = @response['answers']['decision']['confidence'].number
+const responseDictionary = getDictionary(@response)
+const answersNode = getValue(responseDictionary, "answers")
+const answersDictionary = getDictionary(answersNode)
+const decisionNode = getValue(answersDictionary, "decision")
+const decisionDictionary = getDictionary(decisionNode)
+const chosenDecision = getValue(decisionDictionary, "choice")
+const confidenceValue = getValue(decisionDictionary, "confidence")
+@decision = "{chosenDecision}"
+@confidence = confidenceValue.number
 
 if @decision == "DENY" {
     setClipboard(@blankClipboard, true)
