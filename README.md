@@ -32,6 +32,11 @@ https://api.typesafe.ai/v1/systemone
 
 模型默认使用 `jev-latest`。将 `.cherri` 编译并导入「快捷指令」后，在对应的 `apiUrl` 文本/变量动作中修改 endpoint，并在 `apiKey` 动作中填写自己的 API Key。**不要把真实 API Key 提交到 GitHub，也不要分享已经填入密钥的快捷指令。** API Key 会保存在个人快捷指令中；这适合个人原型，不适合作为面向公众分发的生产方案。面向公众的产品应使用自己控制的服务端代理，避免把 API Key 分发到客户端。
 
+Key 没配好时（仍是 `REPLACE_WITH_JEV_API_KEY` 或为空），快捷指令只发一条系统通知然后停止，**不弹阻塞式对话框**——因为它由「打开 App」自动化触发，弹框会把自动化卡住而不是通知到人。
+
+> **为什么不在导入时问 Key？** 曾尝试用 Shortcuts 的「导入问题」（Import Questions）+ `#question jevApiKey` 在导入时弹框收 Key，实测**在 macOS 27.0.1 与 iPhone 真机上都会静默失败**：带 `WFWorkflowImportQuestions` 的文件点「添加快捷指令」后无任何反应、不落盘、不报错，而同样的文件去掉该字段就能正常导入。换 `ActionIndex` 取值、动作数、手写/编译产物均无效，网上也无公开讨论。完整实验矩阵见 [IMPORT_QUESTIONS_FINDINGS.md](IMPORT_QUESTIONS_FINDINGS.md)。`scripts/patch_import_questions.py` 与对应单测保留在仓库里，待系统修复后可一键恢复。
+
+
 ## GitHub Actions 自动编译
 
 每次推送到 `main`、创建 Pull Request 或手动运行 Actions 时，工作流运行静态检查、构建固定 commit 的 Cherri 编译器、编译未签名的验证产物，并尝试通过 RoutineHub HubSign 生成可导入的 `.shortcut`。**2026-10-22 已验证 264 个动作成功编译，未签名产物已上传；远程签名因服务返回 HTML 验证页面而失败。** GitHub 公共 macOS Runner 没有登录你的 iCloud，也无法直接使用 `shortcuts sign`。因此构建是否绿色不应取代对签名产物的检查。
@@ -43,6 +48,15 @@ python3 scripts/check_source.py
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
+## 本地编译
+
+```bash
+cherri Jev_Clipboard_Guard.cherri --skip-sign
+shortcuts sign -m anyone -i "Jev Clipboard Guard_unsigned.shortcut" -o Jev_Clipboard_Guard.shortcut
+```
+
+> `scripts/patch_import_questions.py` 目前不在编译链路上：它给导入问题补 `ActionIndex`，但带导入问题的文件在当前 macOS/iOS 上根本无法导入（见上文与 [IMPORT_QUESTIONS_FINDINGS.md](IMPORT_QUESTIONS_FINDINGS.md)）。系统修复后把它加回这里即可。
+
 ## 安装与自动化
 
 ### 已编译的快捷指令（需签名）
@@ -50,7 +64,7 @@ python3 -m unittest discover -s tests -p 'test_*.py' -v
 1. 从 [GitHub Actions 的成功编译记录](https://github.com/monkey-sking/Jev-Clipboard-Guard/actions/runs/39856737592) 下载 `Jev-Clipboard-Guard-unsigned-plist`，解压得到 `Jev_Clipboard_Guard_unsigned.plist`，并把扩展名改为 `.shortcut`。
 2. 在 **已登录 iCloud 的 Mac** 上，将该未签名文件与 [scripts/sign_on_mac.command](scripts/sign_on_mac.command) 放到同一目录，文件命名为 `Jev_Clipboard_Guard_unsigned.shortcut`，运行 `zsh ./sign_on_mac.command`（也可以手动运行下方命令）。
 3. 将生成的 **已签名** `Jev_Clipboard_Guard.shortcut` 用 AirDrop 或 iCloud Drive 发送到 iPhone，在「文件」中打开并添加到快捷指令。
-4. 编辑导入后的快捷指令，填入自己的 Jev API Key，必要时修改 `apiUrl`。
+4. 编辑导入后的快捷指令，把 `apiKey` 改成自己的 Jev API Key，必要时修改 `apiUrl`。
 5. 为每个目标 App 创建「打开 App」个人自动化，把该 App 的实际名称作为文本传给此快捷指令。
 6. 先用**不含个人秘密**的测试数据验证分享码和比价 App 场景。
 

@@ -54,6 +54,11 @@ jobs:
           "$RUNNER_TEMP/cherri-bin" Jev_Clipboard_Guard.cherri --skip-sign --derive-uuids
           ls -lah *.shortcut
           test -s "Jev Clipboard Guard_unsigned.shortcut"
+          # NOTE: scripts/patch_import_questions.py is intentionally NOT run here.
+          # Filling in ActionIndex makes Shortcuts ask for the Jev API key at import
+          # time, but on macOS 27 / iOS 26 a Shortcut carrying import questions is
+          # silently rejected by the importer (button does nothing, nothing lands).
+          # See IMPORT_QUESTIONS_FINDINGS.md. Re-enable this step once that is fixed.
           cp "Jev Clipboard Guard_unsigned.shortcut" dist/Jev_Clipboard_Guard_unsigned.plist
           rm -f "Jev Clipboard Guard_unsigned.shortcut"
 

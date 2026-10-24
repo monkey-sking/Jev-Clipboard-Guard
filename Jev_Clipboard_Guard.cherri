@@ -7,10 +7,13 @@
 #include 'actions/web'
 #include 'actions/text'
 
-// Configure these two Text/Set Variable actions after importing.
 // apiUrl is the full POST endpoint; default is the official Jev API.
+// Configure these two Text/Set Variable actions after importing.
+// (NOTICE: Shortcuts "Import Questions" via #question silently fail on macOS 27 / iOS 26 —
+//  see IMPORT_QUESTIONS_FINDINGS.md. Until a fixed system arrives, edit the key by hand.)
 @apiUrl = "https://api.typesafe.ai/v1/systemone"
 @apiKey = "REPLACE_WITH_JEV_API_KEY"
+@about = "Jev Clipboard Guard · 由 Aion 提供 · https://aion.7caifei.com"
 @blankClipboard = " "
 @currentApp = ShortcutInput
 const clip = getClipboard()
@@ -162,8 +165,10 @@ if @shareType != "" {
 }
 
 // Only ordinary, non-share clipboard content is sent to Jev for a decision.
-if @apiKey == "REPLACE_WITH_JEV_API_KEY" {
-    alert("请先把 @apiKey 替换成你自己的 Jev API Key，再运行快捷指令。", "Jev Clipboard Guard")
+// Non-blocking: this runs from an "App Is Opened" automation, so a modal alert
+// would stall the automation instead of telling anyone what went wrong.
+if @apiKey == "REPLACE_WITH_JEV_API_KEY" || @apiKey == "" {
+    showNotification("还没有设置 Jev API Key，本次不检查。请在快捷指令里把 apiKey 改成你自己的 Key（jev.typesafe.ai 创建）。", "Jev Clipboard Guard", false)
     stop()
 }
 
