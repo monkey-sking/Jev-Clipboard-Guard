@@ -64,7 +64,9 @@ Key 没填就取消时会提示"设置未完成"并停止，**不弹阻塞式对
 
 ## GitHub Actions 自动编译
 
-每次推送到 `main`、创建 Pull Request 或手动运行 Actions 时，工作流运行静态检查、构建固定 commit 的 Cherri 编译器、编译未签名的验证产物，并尝试通过 RoutineHub HubSign 生成可导入的 `.shortcut`。**2026-10-22 已验证 264 个动作成功编译，未签名产物已上传；远程签名因服务返回 HTML 验证页面而失败。** GitHub 公共 macOS Runner 没有登录你的 iCloud，也无法直接使用 `shortcuts sign`。因此构建是否绿色不应取代对签名产物的检查。
+每次推送到 `main`、创建 Pull Request 或手动运行 Actions 时，工作流运行静态检查与分享口令单测、构建固定 commit 的 Cherri 编译器、编译产物并校验动作数量，最后上传**未签名**的 plist。
+
+**工作流只产出未签名产物，这是刻意的**：Shortcuts 不接受未签名文件，而签名只有 Apple 能做——`shortcuts sign` 需要一台登录了维护者 iCloud 的 Mac（托管 Runner 上跑不了），第三方 RoutineHub HubSign 接口现在返回 HTML 重定向而不是 `AEA1` 数据。早先的工作流会尝试这两种自动签名并因此在每次 `main` 推送时失败；现在改为在本机用 [scripts/sign_on_mac.command](scripts/sign_on_mac.command) 签名。
 
 ## 本地检查
 
@@ -76,9 +78,16 @@ python3 -m unittest discover -s tests -p 'test_*.py' -v
 ## 本地编译
 
 ```bash
-cherri Jev_Clipboard_Guard.cherri --skip-sign
-shortcuts sign -m anyone -i "Jev Clipboard Guard_unsigned.shortcut" -o Jev_Clipboard_Guard.shortcut
+# 1. 编译出未签名产物（文件名取自源码里的 `#define name`）
+cherri Jev_Clipboard_Guard.cherri --skip-sign --derive-uuids
+
+# 2. 用 Apple 官方 CLI 签名（需要一台登录了你 iCloud 的 Mac）
+zsh scripts/sign_on_mac.command
 ```
+
+产物：`Jev 剪贴板守卫_unsigned.shortcut`（未签名）→ `Jev 剪贴板守卫.shortcut`（已签名）。
+
+> **文件名就是快捷指令名。** Cherri 的 `#define name` 只用于**产物文件名**，不会写进 plist（编译产物里没有 `WFWorkflowName`）。而 iOS/macOS 导入时用的正是文件名，所以 `Jev 剪贴板守卫.shortcut` 装完就叫「Jev 剪贴板守卫」。想改名就改源码的 `#define name`，并同步 `scripts/sign_on_mac.command` 里的 `NAME`。
 
 > `scripts/patch_import_questions.py` 目前不在编译链路上：它给导入问题补 `ActionIndex`，但带导入问题的文件在当前 macOS/iOS 上根本无法导入（见上文与 [IMPORT_QUESTIONS_FINDINGS.md](IMPORT_QUESTIONS_FINDINGS.md)）。系统修复后把它加回这里即可。
 
@@ -86,35 +95,31 @@ shortcuts sign -m anyone -i "Jev Clipboard Guard_unsigned.shortcut" -o Jev_Clipb
 
 ### 已编译的快捷指令（需签名）
 
-1. 从 [GitHub Actions 的成功编译记录](https://github.com/monkey-sking/Jev-Clipboard-Guard/actions/runs/39856737592) 下载 `Jev-Clipboard-Guard-unsigned-plist`，解压得到 `Jev_Clipboard_Guard_unsigned.plist`，并把扩展名改为 `.shortcut`。
-2. 在 **已登录 iCloud 的 Mac** 上，将该未签名文件与 [scripts/sign_on_mac.command](scripts/sign_on_mac.command) 放到同一目录，文件命名为 `Jev_Clipboard_Guard_unsigned.shortcut`，运行 `zsh ./sign_on_mac.command`（也可以手动运行下方命令）。
-3. 将生成的 **已签名** `Jev_Clipboard_Guard.shortcut` 用 AirDrop 或 iCloud Drive 发送到 iPhone，在「文件」中打开并添加到快捷指令。
-4. 首次运行一次，回答 5 个配置问题（Key、目标 App、通知、敏感处理、是否发送）；
-   之后配置存在系统「储存空间」，可在 `Jev_Clipboard_Guard.cherri` 顶部的 `@KEY_*` 默认值里预置。
-   并检查顶部用户可配置区的默认值（`@targetApps`、`@notifyOnResult`、`@onSensitive`、`@sendToJev`、`@apiKey`）。
+1. 从 [GitHub Actions 的编译记录](https://github.com/monkey-sking/Jev-Clipboard-Guard/actions) 下载 `Jev-Clipboard-Guard-unsigned-plist`，解压得到 `Jev_Clipboard_Guard_unsigned.plist`（**未签名，不能直接装**）。
+2. 在 **已登录 iCloud 的 Mac** 上，把该文件放到仓库根目录，运行 `zsh scripts/sign_on_mac.command`。脚本会自动找到未签名文件、重试 Apple 时间戳服务的瞬时 500 错误，产出 `Jev 剪贴板守卫.shortcut`。
+3. 把 **已签名** 的 `Jev 剪贴板守卫.shortcut` 用 AirDrop 或 iCloud Drive 发到 iPhone，在「文件」里点开 → 「添加快捷指令」。
+   > 刚导入后列表里可能还显示「0 个操作」——那是列表没刷新，**退出并重开「快捷指令」App** 就会显示真实动作数。
+4. 首次运行一次，依次回答配置问题（Key、目标 App、敏感处理等）；之后配置存在系统「储存空间」，不用再动源码。
 5. 触发方式二选一：
    - **手动**：从「快捷指令」App / 主屏 / 小组件运行，首次会弹列表让你选目标 App。
    - **自动化（一条覆盖全部 App）**：在「快捷指令 → 自动化」新建「App 已打开」，把目标 App
-     （阿里巴巴、电话、微信…）**一次多选**全加进同一条自动化，动作选 `Jev Clipboard Guard`，
+     （阿里巴巴、电话、微信…）**一次多选**全加进同一条自动化，动作选 `Jev 剪贴板守卫`，
      并关闭「运行前询问」。**不需要**传参，它自己用「获取当前 App」识别前台 App。
      注意 iOS 的「App 已打开」在**从后台切回**已打开过的 App 时经常不触发，这是 iOS 侧行为，
      与本快捷指令无关；要稳定覆盖这种场景请用轻点背面 / 操作按钮 / 小组件手动触发。
-   - **轻点背面**：设置 → 辅助功能 → 触控 → 轻点背面 → 轻点两下/三下 → 选 `Jev Clipboard Guard`。
+   - **轻点背面**：设置 → 辅助功能 → 触控 → 轻点背面 → 轻点两下/三下 → 选 `Jev 剪贴板守卫`。
      这个触发器没有系统延迟，是"切换 App 后立刻检查"最实际的方案。
 6. 先用**不含个人秘密**的测试数据验证分享码和比价 App 场景。
 
-```bash
-shortcuts sign -i Jev_Clipboard_Guard_unsigned.shortcut -o Jev_Clipboard_Guard.shortcut -m anyone
-```
-
-目前尚未完成 iPhone 真机验证。**未签名的 XML plist 即使改扩展名，也不能直接当成已签名的可安装产物。**
+目前尚未完成 iPhone 真机验证。**未签名的 XML plist 即使改扩展名，也不能直接当成已签名的可安装产物**——系统会弹「无法打开快捷指令 / 不支持导入未签名的快捷指令文件」。
 
 ### 签名为什么没有自动完成？
 
-- 2026-10-22 的 GitHub Actions 编译已经通过，原始未签名 XML plist 结构合法。
-- RoutineHub HubSign 旧接口返回了 HTML 验证页面，而非以 `AEA1` 开头的已签名二进制；服务可用性由第三方控制。
-- GitHub 托管 macOS Runner 运行 Apple CLI 时提示需要先登录 iCloud。
-- 自动签名的后续方案是由你**已登录 iCloud 的 Mac** 执行本地签名，或配置有权限的远程签名服务。不要在公共仓库上传 Apple ID 或任何 API 密钥。
+- GitHub Actions 的编译已通过，未签名 XML plist 结构合法（`WFWorkflowActions` 数量由工作流断言）。
+- RoutineHub HubSign 旧接口现在返回 HTML 重定向，不再返回以 `AEA1` 开头的已签名二进制；服务可用性由第三方控制，因此该路径已从工作流和脚本中移除。
+- GitHub 托管的 macOS Runner 运行 Apple CLI 时需要先登录 iCloud，无法使用。
+- 所以签名固定由**你已登录 iCloud 的 Mac** 执行。不要在公共仓库上传 Apple ID 或任何 API 密钥。
+- `shortcuts sign` 会偶发 `NSURLErrorDomain error 500`——这是 Apple 时间戳服务的瞬时故障，重试即可（脚本已内置 5 次重试）。
 
 ## 现有限制与风险
 
@@ -131,6 +136,8 @@ shortcuts sign -i Jev_Clipboard_Guard_unsigned.shortcut -o Jev_Clipboard_Guard.s
 
 ## Project status
 
-- **Verified:** GitHub Actions 已完成 Cherri v2.3.0 源码编译，生成 264 个动作的未签名 XML plist；静态检查和分享口令测试通过。
-- **Observed:** HubSign 旧接口返回 HTML 验证页面，GitHub macOS Runner 缺少 iCloud 登录，无法完成签名。
-- **Not yet verified:** 使用个人 Mac 进行苹果签名、在 iPhone 导入和实际运行、Jev 线上请求与剪切板保护时序。
+- **Verified:** GitHub Actions 用 Cherri v2.3.0 编译源码，产出 462 个动作的未签名 XML plist；静态检查与分享口令单测通过。
+- **Verified（2026-10-25，macOS 27.0.1 / 26A434）:** `shortcuts sign -m anyone` 产出的 `AEA1` 文件可以正常导入「快捷指令」，导入后动作数为 462（导入后需重启 Shortcuts App 才会刷新列表里的动作计数）。
+- **Verified:** 文件名决定导入后的快捷指令名（Cherri 不写 `WFWorkflowName`），`Jev 剪贴板守卫.shortcut` 装完即叫「Jev 剪贴板守卫」。
+- **Observed:** HubSign 接口返回 HTML 重定向，无法自动签名；因此工作流只产出未签名产物，签名走本机脚本。
+- **Not yet verified:** 在 iPhone 上导入和实际运行、Jev 线上请求与剪切板保护时序、App 已打开自动化的触发时机。

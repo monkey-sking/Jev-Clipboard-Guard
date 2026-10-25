@@ -5,7 +5,19 @@ import sys
 
 source_path = Path(__file__).resolve().parents[1] / "Jev_Clipboard_Guard.cherri"
 s = source_path.read_text(encoding="utf-8")
+# Cherri uses `#define name` for the output FILENAME only and never writes
+# WFWorkflowName into the plist, so that filename is the user-visible shortcut
+# name at import time. The signing script has to agree with it.
+define_name = next(
+    (line.split(" ", 2)[2].strip() for line in s.splitlines() if line.startswith("#define name ")),
+    "",
+)
+sign_script_path = Path(__file__).resolve().parents[1] / "scripts" / "sign_on_mac.command"
+sign_script = sign_script_path.read_text(encoding="utf-8")
 checks = {
+    "the shortcut's user-visible name is declared once and shared": (
+        define_name != "" and f'NAME="{define_name}"' in sign_script
+    ),
     "official TypeSafe API endpoint is the default": 'https://api.typesafe.ai/v1/systemone' in s,
     "API endpoint remains editable": '@apiUrl =' in s,
     "API key is read from Shortcuts Storage (Store Content)": (

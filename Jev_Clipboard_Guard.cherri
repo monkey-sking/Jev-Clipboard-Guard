@@ -1,4 +1,6 @@
-#define name Jev Clipboard Guard
+// 注意：Cherri 只把这里的名字用在**产物文件名**上，不会写进 plist（没有 WFWorkflowName）。
+// 而 iOS/macOS 导入快捷指令时用的是**文件名**，所以这个值就是用户装完之后看到的名字。
+#define name Jev 剪贴板守卫
 #define color blue
 #define glyph shield
 #define version 18.4
@@ -60,7 +62,7 @@ action 'is.workflow.actions.ask' askInput(text prompt: 'WFAskActionPrompt', text
 // 内部常量（用户不用动）
 @apiKey = ""
 @apiUrl = "https://api.typesafe.ai/v1/systemone"
-@about = "Jev Clipboard Guard · 由 Aion 提供 · https://aion.7caifei.com"
+@about = "Jev 剪贴板守卫 · 由 Aion 提供 · https://aion.7caifei.com"
 @blankClipboard = " "
 
 // ─────────────────────────────────────────────────────────────
@@ -77,7 +79,7 @@ const isSelfAppText = "{isSelfApp}"
 const inputAppText = "{ShortcutInput}"
 
 // ─────────────────────────────────────────────────────────────
-//  储存空间：读配置。第一次使用且是"手动运行"时才引导提问。
+//  2. 储存空间：读配置。第一次使用且是"手动运行"时才引导提问。
 // ─────────────────────────────────────────────────────────────
 const storedApiKey = loadStore("Jev API 密钥", true)
 const storedApiKeyText = "{storedApiKey}"
@@ -122,7 +124,7 @@ if storedApiKeyText == "" {
         showNotification("设置完成。以后每次打开目标 App 会自动检查剪贴板。想改设置：删掉「储存空间」里的 Jev API 密钥 再运行一次即可。", "Jev 剪贴板守卫 · 设置", false)
     } else {
         // 自动化先于设置触发：不弹框，只提示一次然后静默结束。
-        showNotification("还没完成设置：请先手动运行一次「Jev Clipboard Guard」，按提示填 3 步。", "Jev 剪贴板守卫", false)
+        showNotification("还没完成设置：请先手动运行一次「Jev 剪贴板守卫」，按提示填 3 步。", "Jev 剪贴板守卫 · 设置", false)
         stop()
     }
 } else {
@@ -164,7 +166,7 @@ if storedSendToJevText != "" {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  4. 确定目标 App
+//  3. 确定目标 App
 // ─────────────────────────────────────────────────────────────
 @currentApp = detectedAppText
 if detectedAppText == "" || isSelfAppText != "" {
@@ -184,7 +186,7 @@ if resolvedAppText == "" || resolvedAppText == "快捷指令" || resolvedAppText
 }
 
 // ─────────────────────────────────────────────────────────────
-//  2. 读剪贴板
+//  4. 读剪贴板
 // ─────────────────────────────────────────────────────────────
 const clip = getClipboard()
 const clipText = "{clip}"
@@ -194,7 +196,7 @@ if clipText == "" {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  3. 本地敏感内容兜底（不联网）
+//  5. 本地敏感内容兜底（不联网）
 // ─────────────────────────────────────────────────────────────
 // Avoid treating every URL query parameter named "token" as a credential.
 const localRisk = matchText('(?i)(password|passwd|api[_-]?key|client[_-]?secret|secret|bearer|authorization|access[_-]?token|refresh[_-]?token|auth[_-]?token|id[_-]?token)\s*[:=：]\s*\S{4,}|(密码|密钥)\s*[:=：]\s*\S{4,}|验证码\s*[:：]?\s*\d{4,8}|(?:sk-[A-Za-z0-9_-]{16,}|ts[_-][A-Za-z0-9_-]{16,}|tsp[_-][A-Za-z0-9_-]{16,})|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----', clip)
@@ -202,19 +204,19 @@ const localRiskText = "{localRisk}"
 if localRiskText != "" {
     if @onSensitive == "只提醒不动" {
         if @notifyOnResult == "是" {
-            showNotification("发现疑似密码、验证码或密钥。按设置未改动剪贴板，也未发送给 Jev。请自行清理。", "Jev Clipboard Guard", false)
+            showNotification("发现疑似密码、验证码或密钥。按设置未改动剪贴板，也未发送给 Jev。请自行清理。", "Jev 剪贴板守卫", false)
         }
     } else {
         setClipboard(@blankClipboard, true)
         if @notifyOnResult == "是" {
-            showNotification("发现疑似密码、验证码或密钥。已用空格覆盖剪贴板，内容未发送给 Jev。", "Jev Clipboard Guard", false)
+            showNotification("发现疑似密码、验证码或密钥。已用空格覆盖剪贴板，内容未发送给 Jev。", "Jev 剪贴板守卫", false)
         }
     }
     stop()
 }
 
 // ─────────────────────────────────────────────────────────────
-//  4. 本地分享口令识别（命中则不把原始口令发给 Jev）
+//  6. 本地分享口令识别（命中则不把原始口令发给 Jev）
 // ─────────────────────────────────────────────────────────────
 @shareType = ""
 @needsShareConfirmation = false
@@ -329,25 +331,25 @@ if @shareType != "" {
 
     if @targetMatches && !@needsShareConfirmation {
         if @notifyOnResult == "是" {
-            showNotification("识别到{@shareType}分享内容，目标 APP 匹配。剪切板已保留；原始口令未发送给 Jev。", "Jev Clipboard Guard", false)
+            showNotification("识别到{@shareType}分享内容，目标 APP 匹配。剪切板已保留；原始口令未发送给 Jev。", "Jev 剪贴板守卫", false)
         }
         stop()
     } else {
         if @isShoppingShare && trustedShoppingConsumerText != "" && !@needsShareConfirmation {
             if @notifyOnResult == "是" {
-                showNotification("识别到{@shareType}商品分享内容，当前 APP 命中比价/购物工具白名单。剪切板已保留；原始内容未发送给 Jev。", "Jev Clipboard Guard", false)
+                showNotification("识别到{@shareType}商品分享内容，当前 APP 命中比价/购物工具白名单。剪切板已保留；原始内容未发送给 Jev。", "Jev 剪贴板守卫", false)
             }
             stop()
         } else {
             menu "识别到{@shareType}，请决定如何处理" {
                 item "保留分享内容（可能被当前 APP 读取）":
                     if @notifyOnResult == "是" {
-                        showNotification("已保留分享内容。它仍可能被当前 APP 读取；原始内容未发送给 Jev。", "Jev Clipboard Guard", false)
+                        showNotification("已保留分享内容。它仍可能被当前 APP 读取；原始内容未发送给 Jev。", "Jev 剪贴板守卫", false)
                     }
                 item "清空剪切板（会丢失分享内容）":
                     setClipboard(@blankClipboard, true)
                     if @notifyOnResult == "是" {
-                        showNotification("已用空格覆盖剪切板。注意：如果目标 APP 已经读取过内容，这不能撤回已发生的读取。", "Jev Clipboard Guard", false)
+                        showNotification("已用空格覆盖剪切板。注意：如果目标 APP 已经读取过内容，这不能撤回已发生的读取。", "Jev 剪贴板守卫", false)
                     }
             }
             stop()
@@ -356,7 +358,7 @@ if @shareType != "" {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  5. 纯本地模式：不再把普通文本发给 Jev
+//  7. 纯本地模式：不再把普通文本发给 Jev
 // ─────────────────────────────────────────────────────────────
 if @sendToJev != "是" {
     // 本地规则都没命中、纯本地模式下就静默结束，不再弹通知。
@@ -366,7 +368,7 @@ if @sendToJev != "是" {
 const apiKeyCheck = "{@apiKey}"
 if apiKeyCheck == "" || apiKeyCheck == "REPLACE_WITH_JEV_API_KEY" {
     if @notifyOnResult == "是" {
-        showNotification("还没有设置 Jev API Key，本次不检查。运行一次并粘贴 Key 即可（会存进「储存空间」，以后不用再填）。", "Jev Clipboard Guard", false)
+        showNotification("还没有设置 Jev API Key，本次不检查。运行一次并粘贴 Key 即可（会存进「储存空间」，以后不用再填）。", "Jev 剪贴板守卫", false)
     }
     stop()
 }
@@ -403,29 +405,29 @@ const confidenceNumber = number(confidenceValue)
 if @decision == "DENY" {
     if @onSensitive == "只提醒不动" {
         if @notifyOnResult == "是" {
-            showNotification("Jev 判定：拒绝。按设置未改动剪贴板，请自行清理。", "Jev Clipboard Guard", false)
+            showNotification("Jev 判定：拒绝。按设置未改动剪贴板，请自行清理。", "Jev 剪贴板守卫", false)
         }
     } else {
         setClipboard(@blankClipboard, true)
         if @notifyOnResult == "是" {
-            showNotification("Jev 判定：拒绝。已用空格覆盖剪贴板。", "Jev Clipboard Guard", false)
+            showNotification("Jev 判定：拒绝。已用空格覆盖剪贴板。", "Jev 剪贴板守卫", false)
         }
     }
 } else {
     if @decision == "ALLOW" && confidenceNumber >= 0.85 {
         if @notifyOnResult == "是" {
-            showNotification("Jev 判定：允许。剪贴板保持不变。", "Jev Clipboard Guard", false)
+            showNotification("Jev 判定：允许。剪贴板保持不变。", "Jev 剪贴板守卫", false)
         }
     } else {
         menu "Jev 无法高置信度自动放行，请选择" {
             item "保留剪贴板（本次允许）":
                 if @notifyOnResult == "是" {
-                    showNotification("你已确认保留剪贴板。", "Jev Clipboard Guard", false)
+                    showNotification("你已确认保留剪贴板。", "Jev 剪贴板守卫", false)
                 }
             item "清空剪贴板（本次拒绝）":
                 setClipboard(@blankClipboard, true)
                 if @notifyOnResult == "是" {
-                    showNotification("你已拒绝；剪贴板已用空格覆盖。", "Jev Clipboard Guard", false)
+                    showNotification("你已拒绝；剪贴板已用空格覆盖。", "Jev 剪贴板守卫", false)
                 }
         }
     }

@@ -53,37 +53,41 @@
 
 ## 4. 现在的实现
 
-```cherri
-// 顶部用户可配置区（导入后改这里，不动逻辑）
-@targetApps = ["阿里巴巴", "电话", "微信", "支付宝", "淘宝", "京东"]
-@notifyOnResult = "是"
-@onSensitive = "覆盖剪切板"
-@sendToJev = "是"
+（摘自 `Jev_Clipboard_Guard.cherri`；以源码为准，这里只摘与「获取当前 App」相关的部分。）
 
+```cherri
+// 第 1 节 —— 先判断"这次是谁在运行"，不弹任何界面
 const detectedAppRaw = getCurrentApp("Current")
 const detectedApp = getName(detectedAppRaw)
 const detectedAppText = "{detectedApp}"
 const isSelfApp = matchText('(?i)^(快捷指令|Shortcuts|Shortcut)$', detectedAppText)
 const isSelfAppText = "{isSelfApp}"
 const inputAppText = "{ShortcutInput}"
+
+// 第 2 节 —— 读配置 / 首次引导（只在手动运行且没配过 Key 时才弹窗）
+//   …（略：Jev API 密钥、要检查的 App、敏感内容处理、每次弹通知、允许发送给 Jev）
+
+// 第 3 节 —— 确定目标 App
 @currentApp = detectedAppText
 if detectedAppText == "" || isSelfAppText != "" {
-    // 手动运行并显式传参时以传入值为准；否则弹列表让用户选目标 App。
+    // 手动运行并显式传参时以传入值为准。
     @currentApp = inputAppText
 }
-const afterInputText = "{@currentApp}"
-if afterInputText == "" || afterInputText == "快捷指令" || afterInputText == "Shortcuts" {
+// 只有"人在快捷指令 App 里手动点运行"这一种情况才弹列表（前台是快捷指令自己）。
+// 自动化触发时绝不能弹列表：那会把自动化卡在界面上。识别不到 App 就直接静默跳过。
+if detectedAppText != "" && isSelfAppText != "" && inputAppText == "" {
     const pickedApp = chooseFromList(@targetApps, "选择本次要检查的目标 App")
     @currentApp = "{pickedApp}"
 }
 const resolvedAppText = "{@currentApp}"
 if resolvedAppText == "" || resolvedAppText == "快捷指令" || resolvedAppText == "Shortcuts" {
-    if @notifyOnResult == "是" {
-        showNotification("没有确定要检查的 App，本次跳过。", "Jev Clipboard Guard", false)
-    }
+    // 静默结束：自动化触发时不能每次开 App 都弹一条"跳过"通知。
     stop()
 }
 ```
+
+> 「这次是谁在运行」的判断必须排在最前面，设置引导和选 App 列表都挂在它后面——
+> 自动化触发时任何 UI 都会把自动化卡死，而卡死的自动化等于没运行。
 
 要点：
 
