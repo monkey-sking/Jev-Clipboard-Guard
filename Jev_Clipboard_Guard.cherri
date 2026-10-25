@@ -22,7 +22,8 @@ action 'is.workflow.actions.ask' askInput(text prompt: 'WFAskActionPrompt', text
 }
 
 // ─────────────────────────────────────────────────────────────
-//  用户可配置区：导入后改这里，不需要动下面的逻辑
+//  默认值：普通用户不用改这里，第一次运行会问一遍，答案存进「储存空间」
+//  这里只决定"第一次运行时问题框里预填什么"。
 // ─────────────────────────────────────────────────────────────
 
 // 手动触发时（前台是「快捷指令」自己）弹出的候选 App 列表。按需增删。
@@ -42,51 +43,94 @@ action 'is.workflow.actions.ask' askInput(text prompt: 'WFAskActionPrompt', text
 // ─────────────────────────────────────────────────────────────
 //  储存空间覆盖（推荐用这个改配置，不用动源码）
 // ─────────────────────────────────────────────────────────────
-// 下面就是「快捷指令 → 快捷指令详情 → 储存空间」里的内容，键名固定：
-//   jev.apiKey           你的 Jev API Key（首次运行时如果为空会弹框让你粘贴一次）
-//   jev.targetApps       目标 App 列表，用英文逗号分隔，例如：阿里巴巴,电话,微信
-//   jev.notifyOnResult   是 / 否
-//   jev.onSensitive      覆盖剪切板 / 只提醒不动
-//   jev.sendToJev        是 / 否
+// 配置项名称（故意用中文，普通用户看得懂；这些就是「储存空间」里的键名）：
+//   Jev API 密钥      你的 Jev API Key（第一次运行时问一次，之后自动读）
+//   要检查的 App      要对哪些 App 做检查，逗号分隔，例如：阿里巴巴,电话,微信
+//   敏感内容处理      覆盖剪贴板 / 只提醒不动
+//   每次弹通知        是 / 否（是否每次弹通知）
+//   允许发送给 Jev    是 / 否（否 = 纯本地，绝不联网）
+//   API 地址          可选，默认官方 endpoint，自建代理才需要改
 // 只要这里写过值，就优先用储存空间的值；没写过才用上面的默认值。
 // 实测：写入后下次运行能读回（macOS 27 / iOS 26）。
 //
 // 注意：Cherri v2.3.0 的 "const x = action()" 赋值形态会让该 action 的 identifier
 // 丢失（退化为 is.workflow.actions.rawaction），所以这里全部改用 "@var = action()"
 // 赋值形态 + 文本插值比较，动作才会正确生成。
-const storedApiKey = loadStore("jev.apiKey", true)
+// 读一次"是否已经配置过"。五项里 Key 是必须的，其余按需。
+const storedApiKey = loadStore("Jev API 密钥", true)
 const storedApiKeyText = "{storedApiKey}"
+
+// ── 第一次运行：一次性引导，用大白话问，不让人改代码 ──
 if storedApiKeyText == "" {
-    const enteredKey = askInput("首次使用：请粘贴你的 Jev API Key（只需填一次）")
+    showNotification("第一次使用需要 3 步设置，大约 30 秒。现在开始。", "Jev 剪贴板守卫 · 设置", false)
+
+    const enteredKey = askInput("第 1 步 / 共 3 步：请粘贴你的 Jev API Key（只需设置这一次，以后不用再填）")
     const enteredKeyText = "{enteredKey}"
-    if enteredKeyText != "" {
-        saveStore("jev.apiKey", enteredKeyText, true)
-        @apiKey = enteredKeyText
+    if enteredKeyText == "" {
+        showNotification("没有填 API Key，设置未完成。下次运行会再问你一次。", "Jev 剪贴板守卫 · 设置", false)
+        stop()
     }
+    saveStore("Jev API 密钥", enteredKeyText, true)
+    @apiKey = enteredKeyText
+
+    const enteredApps = askInput("第 2 步 / 共 3 步：剪贴板要对哪些 App 做检查？用逗号隔开（留空 = 用默认的 阿里巴巴,电话,微信）", "阿里巴巴,电话,微信")
+    const enteredAppsText = "{enteredApps}"
+    if enteredAppsText != "" {
+        saveStore("要检查的 App", enteredAppsText, true)
+        @targetApps = splitText(enteredAppsText, ",")
+    }
+
+    const enteredMode = askInput("第 3 步 / 共 3 步：命中密码、验证码这类敏感内容时怎么办？填 1 或 2⏎1 = 只提醒我，不动剪贴板⏎2 = 直接用空格覆盖掉（更安全）", "1")
+    const enteredModeText = "{enteredMode}"
+    if enteredModeText == "2" {
+        saveStore("敏感内容处理", "覆盖剪贴板", true)
+        @onSensitive = "覆盖剪贴板"
+    } else {
+        saveStore("敏感内容处理", "只提醒不动", true)
+        @onSensitive = "只提醒不动"
+    }
+
+    // 通知与联网这两个开关默认给最稳的值：弹通知 + 允许联网判断。
+    saveStore("每次弹通知", "是", true)
+    saveStore("允许发送给 Jev", "是", true)
+    @notifyOnResult = "是"
+    @sendToJev = "是"
+
+    showNotification("设置完成。以后每次打开目标 App 会自动检查剪贴板。想改设置：删掉「储存空间」里的 Jev API 密钥 再运行一次即可。", "Jev 剪贴板守卫 · 设置", false)
 } else {
+    // ── 已配置过：静默读取，不打扰 ──
     @apiKey = storedApiKeyText
 }
 
-const storedTargetApps = loadStore("jev.targetApps", true)
-const storedTargetAppsText = "{storedTargetApps}"
-if storedTargetAppsText != "" {
-    const targetAppList = splitText(storedTargetAppsText, ",")
-    @targetApps = targetAppList
+// endpoint：默认 TypeSafe 官方，允许覆盖（自建代理/测试环境才需要动）
+// (NOTICE: Shortcuts "Import Questions" via #question silently fail on macOS 27 / iOS 26 —
+//  see IMPORT_QUESTIONS_FINDINGS.md. 因此改用「储存空间 + 第一次运行提问」。)
+@apiUrl = "https://api.typesafe.ai/v1/systemone"
+const storedApiUrl = loadStore("API 地址", true)
+const storedApiUrlText = "{storedApiUrl}"
+if storedApiUrlText != "" {
+    @apiUrl = storedApiUrlText
 }
 
-const storedNotify = loadStore("jev.notifyOnResult", true)
+const storedTargetApps = loadStore("要检查的 App", true)
+const storedTargetAppsText = "{storedTargetApps}"
+if storedTargetAppsText != "" {
+    @targetApps = splitText(storedTargetAppsText, ",")
+}
+
+const storedNotify = loadStore("每次弹通知", true)
 const storedNotifyText = "{storedNotify}"
 if storedNotifyText != "" {
     @notifyOnResult = storedNotifyText
 }
 
-const storedOnSensitive = loadStore("jev.onSensitive", true)
+const storedOnSensitive = loadStore("敏感内容处理", true)
 const storedOnSensitiveText = "{storedOnSensitive}"
 if storedOnSensitiveText != "" {
     @onSensitive = storedOnSensitiveText
 }
 
-const storedSendToJev = loadStore("jev.sendToJev", true)
+const storedSendToJev = loadStore("允许发送给 Jev", true)
 const storedSendToJevText = "{storedSendToJev}"
 if storedSendToJevText != "" {
     @sendToJev = storedSendToJevText
@@ -96,11 +140,6 @@ if storedSendToJevText != "" {
 //  以下为内部常量
 // ─────────────────────────────────────────────────────────────
 
-// apiUrl is the full POST endpoint; default is the official Jev API.
-// Configure these two Text/Set Variable actions after importing.
-// (NOTICE: Shortcuts "Import Questions" via #question silently fail on macOS 27 / iOS 26 —
-//  see IMPORT_QUESTIONS_FINDINGS.md. Until a fixed system arrives, edit the key by hand.)
-@apiUrl = "https://api.typesafe.ai/v1/systemone"
 @apiKey = ""
 @about = "Jev Clipboard Guard · 由 Aion 提供 · https://aion.7caifei.com"
 @blankClipboard = " "

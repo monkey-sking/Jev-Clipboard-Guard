@@ -10,9 +10,9 @@
 
 - 确定目标 App：优先用「获取当前 App」识别执行瞬间的前台 App；从「快捷指令」App 里手动
   运行时前台是快捷指令自己，此时会弹列表让你选目标 App；显式传参仍以传入值为准。
-- **配置存在系统「储存空间」，首次运行问一次，之后不用改代码**：
-  `jev.apiKey`（Jev Key）、`jev.targetApps`（目标 App 列表）、`jev.notifyOnResult`（每次结果是否弹通知）、
-  `jev.onSensitive`（命中敏感内容时「覆盖剪贴板」或「只提醒不动」）、`jev.sendToJev`（纯本地模式）。
+- **配置存在系统「储存空间」，首次运行问 3 个问题，之后不用改代码**：
+  `Jev API 密钥`、`要检查的 App`、`敏感内容处理`（外加两个进阶开关 `每次弹通知`、`允许发送给 Jev`）。
+  键名故意用中文，普通用户看得懂。
 - 需要 iOS/iPadOS 18.2+ 或 macOS 15.2+（「获取当前 App」动作的系统门槛）。
 - 在本地先检查明显的密码、验证码、API Key 和私钥模式，命中时按 `@onSensitive` 决定覆盖或只提醒，不发送给 Jev。
 - 本地识别淘宝/天猫、拼多多、抖音、小红书、快手、京东、美团/大众点评、B 站等常见分享链接或口令。
@@ -37,21 +37,25 @@ https://api.typesafe.ai/v1/systemone
 
 模型默认使用 `jev-latest`。
 
-**Key 与配置放在「储存空间」里，不用改代码。** 导入后第一次运行（手动运行一次即可）会依次问你：
+**首次运行 3 步设置，之后不用再管。** 导入后**手动运行一次**，会依次问你：
 
-1. Jev API Key（`jev.apiKey`）
-2. 目标 App 列表（`jev.targetApps`，逗号分隔，默认 `阿里巴巴,电话,微信`）
-3. 每次结果是否弹通知（`jev.notifyOnResult`，默认「是」）
-4. 命中敏感内容时怎么办（`jev.onSensitive`，默认「只提醒不动」，可选「覆盖剪切板」）
-5. 是否发送给 Jev（`jev.sendToJev`，默认「是」；选「否」= 纯本地模式，只在设备上做规则检查）
+| 步骤 | 问题 | 存在哪个键 |
+|---|---|---|
+| 第 1 步 | 粘贴你的 Jev API Key | `Jev API 密钥` |
+| 第 2 步 | 要对哪些 App 做检查（逗号分隔，默认 `阿里巴巴,电话,微信`） | `要检查的 App` |
+| 第 3 步 | 命中密码/验证码时怎么办：`1` 只提醒不动 / `2` 用空格覆盖 | `敏感内容处理` |
 
-这些值用 Shortcuts 的 `is.workflow.actions.setstoredcontent` 写入系统「储存空间」，之后每次运行都从存储读取，**不会出现在快捷指令的动作里**，所以分享/导出 `.shortcut` 文件不会带上你的 Key。想改配置就重新回答一次问题，或在 `@KEY_*` 常量区直接改默认值后重新编译。
+配置用 Shortcuts 的 `is.workflow.actions.setstoredcontent` 写进系统「储存空间」，之后每次运行自动读取，**不写进快捷指令的动作**，所以分享/导出 `.shortcut` 文件不会带上你的 Key。
 
-`apiUrl` 仍是源码里的常量（默认 `https://api.typesafe.ai/v1/systemone`），需要改 endpoint 就改 `Jev_Clipboard_Guard.cherri` 的 `@apiUrl` 再编译。
+两个进阶开关默认给最稳的值（弹通知 + 允许联网判断），需要时手动改储存空间：`每次弹通知`（`是`/`否`）、`允许发送给 Jev`（`否` = 纯本地，绝不联网）。
+
+**改配置**：删掉储存空间里的 `Jev API 密钥`，再运行一次就会重新问。
+
+**改 API 地址**：默认 `https://api.typesafe.ai/v1/systemone`，绝大多数人不用改。自建代理/测试时写储存空间 `API 地址` 覆盖，或改 `Jev_Clipboard_Guard.cherri` 的 `@apiUrl` 默认值再编译。
 
 **不要把真实 API Key 写进源码提交到 GitHub。** 当前方案下 Key 只存在设备的储存空间里；面向公众的产品仍应使用自己控制的服务端代理，避免把 API Key 分发到客户端。
 
-Key 没配好时（储存空间为空且用户取消了输入），快捷指令只发一条系统通知然后停止，**不弹阻塞式对话框**——因为它由「打开 App」自动化触发，弹框会把自动化卡住而不是通知到人。
+Key 没填就取消时会提示"设置未完成"并停止，**不弹阻塞式对话框**——因为它由「打开 App」自动化触发，弹框会把自动化卡住而不是通知到人。
 
 > **为什么不在导入时问 Key？** 曾尝试用 Shortcuts 的「导入问题」（Import Questions）+ `#question jevApiKey` 在导入时弹框收 Key，实测**在 macOS 27.0.1 与 iPhone 真机上都会静默失败**：带 `WFWorkflowImportQuestions` 的文件点「添加快捷指令」后无任何反应、不落盘、不报错，而同样的文件去掉该字段就能正常导入。换 `ActionIndex` 取值、动作数、手写/编译产物均无效，网上也无公开讨论。完整实验矩阵见 [IMPORT_QUESTIONS_FINDINGS.md](IMPORT_QUESTIONS_FINDINGS.md)。`scripts/patch_import_questions.py` 与对应单测保留在仓库里，待系统修复后可一键恢复。
 
