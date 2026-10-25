@@ -161,16 +161,15 @@ if detectedAppText == "" || isSelfAppText != "" {
     // 手动运行并显式传参时以传入值为准；否则让用户从列表里选。
     @currentApp = inputAppText
 }
-const afterInputText = "{@currentApp}"
-if afterInputText == "" || afterInputText == "快捷指令" || afterInputText == "Shortcuts" {
+// 只有"人在快捷指令 App 里手动点运行"这一种情况才弹列表（前台是快捷指令自己）。
+// 自动化触发时绝不能弹列表：那会把自动化卡在界面上。识别不到 App 就直接静默跳过。
+if detectedAppText != "" && isSelfAppText != "" && inputAppText == "" {
     const pickedApp = chooseFromList(@targetApps, "选择本次要检查的目标 App")
     @currentApp = "{pickedApp}"
 }
 const resolvedAppText = "{@currentApp}"
 if resolvedAppText == "" || resolvedAppText == "快捷指令" || resolvedAppText == "Shortcuts" {
-    if @notifyOnResult == "是" {
-        showNotification("没有确定要检查的 App，本次跳过。", "Jev Clipboard Guard", false)
-    }
+    // 静默结束：自动化触发时不能每次开 App 都弹一条"跳过"通知。
     stop()
 }
 
