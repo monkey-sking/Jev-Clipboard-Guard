@@ -1,38 +1,173 @@
 #define name Jev Clipboard Guard
 #define color blue
 #define glyph shield
-#define version 18
-#define noinput stopwith "请从“打开 App”自动化运行，并传入目标 App 名称。"
+#define version 18.4
 #include 'actions/sharing'
 #include 'actions/web'
 #include 'actions/text'
+
+// iOS 18.2+ / macOS 15.2+ ships the "Get Current App" action.
+// Notes and measurements: GET_CURRENT_APP.md
+action 'is.workflow.actions.getcurrentapp' getCurrentApp(text scope: 'WFVisibleAppScope'): text
+
+// 快捷指令自带的「储存空间」（获取已储存内容 / 储存内容）。用来持久保存 API Key 等配置，
+// 这样改配置不用改快捷指令源码。实测可用：写入后下次运行能读回（macOS 27 / iOS 26）。
+action 'is.workflow.actions.getstoredcontent' loadStore(text key: 'WFStoredContentKey', bool ?global: 'WFStoredContentGlobalValue' = false): text
+
+action 'is.workflow.actions.setstoredcontent' saveStore(text key: 'WFStoredContentKey', text value: 'WFInput', bool ?global: 'WFStoredContentGlobalValue' = false)
+
+// 首次运行没有 Key 时，弹输入框让用户粘贴，然后写进储存空间。
+action 'is.workflow.actions.ask' askInput(text prompt: 'WFAskActionPrompt', text ?defaultAnswer: 'WFAskActionDefaultAnswer'): text {
+    "WFAskActionInputType": "Text"
+}
+
+// ─────────────────────────────────────────────────────────────
+//  用户可配置区：导入后改这里，不需要动下面的逻辑
+// ─────────────────────────────────────────────────────────────
+
+// 手动触发时（前台是「快捷指令」自己）弹出的候选 App 列表。按需增删。
+@targetApps = ["阿里巴巴", "电话", "微信", "支付宝", "淘宝", "京东"]
+
+// 每次结果是否弹通知。改成 "否" 则静默运行（自动化里更安静）。
+@notifyOnResult = "是"
+
+// 命中本地敏感规则（密码/验证码/密钥）时的动作：
+//   "覆盖剪切板" —— 立刻用空格覆盖（默认，最安全）
+//   "只提醒不动" —— 只弹通知，不改剪贴板（你自己决定后续）
+@onSensitive = "覆盖剪切板"
+
+// 是否允许把普通文本发送给 Jev 做判断。改成 "否" 则纯本地运行，绝不联网。
+@sendToJev = "是"
+
+// ─────────────────────────────────────────────────────────────
+//  储存空间覆盖（推荐用这个改配置，不用动源码）
+// ─────────────────────────────────────────────────────────────
+// 下面就是「快捷指令 → 快捷指令详情 → 储存空间」里的内容，键名固定：
+//   jev.apiKey           你的 Jev API Key（首次运行时如果为空会弹框让你粘贴一次）
+//   jev.targetApps       目标 App 列表，用英文逗号分隔，例如：阿里巴巴,电话,微信
+//   jev.notifyOnResult   是 / 否
+//   jev.onSensitive      覆盖剪切板 / 只提醒不动
+//   jev.sendToJev        是 / 否
+// 只要这里写过值，就优先用储存空间的值；没写过才用上面的默认值。
+// 实测：写入后下次运行能读回（macOS 27 / iOS 26）。
+//
+// 注意：Cherri v2.3.0 的 "const x = action()" 赋值形态会让该 action 的 identifier
+// 丢失（退化为 is.workflow.actions.rawaction），所以这里全部改用 "@var = action()"
+// 赋值形态 + 文本插值比较，动作才会正确生成。
+const storedApiKey = loadStore("jev.apiKey", true)
+const storedApiKeyText = "{storedApiKey}"
+if storedApiKeyText == "" {
+    const enteredKey = askInput("首次使用：请粘贴你的 Jev API Key（只需填一次）")
+    const enteredKeyText = "{enteredKey}"
+    if enteredKeyText != "" {
+        saveStore("jev.apiKey", enteredKeyText, true)
+        @apiKey = enteredKeyText
+    }
+} else {
+    @apiKey = storedApiKeyText
+}
+
+const storedTargetApps = loadStore("jev.targetApps", true)
+const storedTargetAppsText = "{storedTargetApps}"
+if storedTargetAppsText != "" {
+    const targetAppList = splitText(storedTargetAppsText, ",")
+    @targetApps = targetAppList
+}
+
+const storedNotify = loadStore("jev.notifyOnResult", true)
+const storedNotifyText = "{storedNotify}"
+if storedNotifyText != "" {
+    @notifyOnResult = storedNotifyText
+}
+
+const storedOnSensitive = loadStore("jev.onSensitive", true)
+const storedOnSensitiveText = "{storedOnSensitive}"
+if storedOnSensitiveText != "" {
+    @onSensitive = storedOnSensitiveText
+}
+
+const storedSendToJev = loadStore("jev.sendToJev", true)
+const storedSendToJevText = "{storedSendToJev}"
+if storedSendToJevText != "" {
+    @sendToJev = storedSendToJevText
+}
+
+// ─────────────────────────────────────────────────────────────
+//  以下为内部常量
+// ─────────────────────────────────────────────────────────────
 
 // apiUrl is the full POST endpoint; default is the official Jev API.
 // Configure these two Text/Set Variable actions after importing.
 // (NOTICE: Shortcuts "Import Questions" via #question silently fail on macOS 27 / iOS 26 —
 //  see IMPORT_QUESTIONS_FINDINGS.md. Until a fixed system arrives, edit the key by hand.)
 @apiUrl = "https://api.typesafe.ai/v1/systemone"
-@apiKey = "REPLACE_WITH_JEV_API_KEY"
+@apiKey = ""
 @about = "Jev Clipboard Guard · 由 Aion 提供 · https://aion.7caifei.com"
 @blankClipboard = " "
-@currentApp = ShortcutInput
+
+// ─────────────────────────────────────────────────────────────
+//  1. 确定目标 App
+// ─────────────────────────────────────────────────────────────
+// 优先用「获取当前 App」：它返回执行瞬间的前台 App，适用于「App 已打开」自动化
+// 以及「轻点背面 / 操作按钮」这类不切换前台的触发方式。
+// 手动从「快捷指令」App 里点时前台就是快捷指令自己，此时让用户从列表里选。
+const detectedAppRaw = getCurrentApp("Current")
+const detectedApp = getName(detectedAppRaw)
+const detectedAppText = "{detectedApp}"
+const isSelfApp = matchText('(?i)^(快捷指令|Shortcuts|Shortcut)$', detectedAppText)
+const isSelfAppText = "{isSelfApp}"
+const inputAppText = "{ShortcutInput}"
+@currentApp = detectedAppText
+if detectedAppText == "" || isSelfAppText != "" {
+    // 手动运行并显式传参时以传入值为准；否则让用户从列表里选。
+    @currentApp = inputAppText
+}
+const afterInputText = "{@currentApp}"
+if afterInputText == "" || afterInputText == "快捷指令" || afterInputText == "Shortcuts" {
+    const pickedApp = chooseFromList(@targetApps, "选择本次要检查的目标 App")
+    @currentApp = "{pickedApp}"
+}
+const resolvedAppText = "{@currentApp}"
+if resolvedAppText == "" || resolvedAppText == "快捷指令" || resolvedAppText == "Shortcuts" {
+    if @notifyOnResult == "是" {
+        showNotification("没有确定要检查的 App，本次跳过。", "Jev Clipboard Guard", false)
+    }
+    stop()
+}
+
+// ─────────────────────────────────────────────────────────────
+//  2. 读剪贴板
+// ─────────────────────────────────────────────────────────────
 const clip = getClipboard()
 const clipText = "{clip}"
 if clipText == "" {
-    showNotification("剪切板为空，没有需要检查的内容。", "Jev Clipboard Guard", false)
+    // 剪贴板本来就空，没什么可检查的，静默结束（不打扰用户）。
     stop()
 }
 
-// Local first-pass guard. Avoid treating every URL query parameter named "token" as a credential.
+// ─────────────────────────────────────────────────────────────
+//  3. 本地敏感内容兜底（不联网）
+// ─────────────────────────────────────────────────────────────
+// Avoid treating every URL query parameter named "token" as a credential.
 const localRisk = matchText('(?i)(password|passwd|api[_-]?key|client[_-]?secret|secret|bearer|authorization|access[_-]?token|refresh[_-]?token|auth[_-]?token|id[_-]?token)\s*[:=：]\s*\S{4,}|(密码|密钥)\s*[:=：]\s*\S{4,}|验证码\s*[:：]?\s*\d{4,8}|(?:sk-[A-Za-z0-9_-]{16,}|ts[_-][A-Za-z0-9_-]{16,}|tsp[_-][A-Za-z0-9_-]{16,})|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----', clip)
 const localRiskText = "{localRisk}"
 if localRiskText != "" {
-    setClipboard(@blankClipboard, true)
-    showNotification("发现疑似密码、验证码或密钥。已用空格覆盖剪切板，内容未发送给 Jev。", "Jev Clipboard Guard", false)
+    if @onSensitive == "只提醒不动" {
+        if @notifyOnResult == "是" {
+            showNotification("发现疑似密码、验证码或密钥。按设置未改动剪贴板，也未发送给 Jev。请自行清理。", "Jev Clipboard Guard", false)
+        }
+    } else {
+        setClipboard(@blankClipboard, true)
+        if @notifyOnResult == "是" {
+            showNotification("发现疑似密码、验证码或密钥。已用空格覆盖剪贴板，内容未发送给 Jev。", "Jev Clipboard Guard", false)
+        }
+    }
     stop()
 }
 
-// Recognize common Chinese-app share codes locally. Never send the raw share payload to Jev.
+// ─────────────────────────────────────────────────────────────
+//  4. 本地分享口令识别（命中则不把原始口令发给 Jev）
+// ─────────────────────────────────────────────────────────────
 @shareType = ""
 @needsShareConfirmation = false
 const ruleMatch0 = matchText('(?i)(淘口令|￥[^￥]{3,}￥|¥[^¥]{3,}¥|m\.tb\.cn|s\.click\.taobao\.com|复制.{0,16}(淘宝|天猫)|打开.{0,10}(淘宝|天猫))', clip)
@@ -91,7 +226,7 @@ if @shareType != "" {
     @targetMatches = false
     @isShoppingShare = false
     // Cross-app consumers: a marketplace share payload may intentionally be opened by a price-comparison app.
-    // Keep this allowlist conservative and edit names to match the exact app names passed by your automations.
+    // Keep this allowlist conservative and edit names to match the exact app names you use.
     const trustedShoppingConsumer = matchText('(?i)(慢慢买|什么值得买|惠惠购物助手|比价狗)', @currentApp)
     const trustedShoppingConsumerText = "{trustedShoppingConsumer}"
     if @shareType == "淘宝/天猫" {
@@ -145,33 +280,50 @@ if @shareType != "" {
     }
 
     if @targetMatches && !@needsShareConfirmation {
-        showNotification("识别到{@shareType}分享内容，目标 APP 匹配。剪切板已保留；原始口令未发送给 Jev。", "Jev Clipboard Guard", false)
+        if @notifyOnResult == "是" {
+            showNotification("识别到{@shareType}分享内容，目标 APP 匹配。剪切板已保留；原始口令未发送给 Jev。", "Jev Clipboard Guard", false)
+        }
         stop()
     } else {
         if @isShoppingShare && trustedShoppingConsumerText != "" && !@needsShareConfirmation {
-            showNotification("识别到{@shareType}商品分享内容，当前 APP 命中比价/购物工具白名单。剪切板已保留；原始内容未发送给 Jev。", "Jev Clipboard Guard", false)
+            if @notifyOnResult == "是" {
+                showNotification("识别到{@shareType}商品分享内容，当前 APP 命中比价/购物工具白名单。剪切板已保留；原始内容未发送给 Jev。", "Jev Clipboard Guard", false)
+            }
             stop()
         } else {
             menu "识别到{@shareType}，请决定如何处理" {
                 item "保留分享内容（可能被当前 APP 读取）":
-                    showNotification("已保留分享内容。它仍可能被当前 APP 读取；原始内容未发送给 Jev。", "Jev Clipboard Guard", false)
+                    if @notifyOnResult == "是" {
+                        showNotification("已保留分享内容。它仍可能被当前 APP 读取；原始内容未发送给 Jev。", "Jev Clipboard Guard", false)
+                    }
                 item "清空剪切板（会丢失分享内容）":
                     setClipboard(@blankClipboard, true)
-                    showNotification("已用空格覆盖剪切板。注意：如果目标 APP 已经读取过内容，这不能撤回已发生的读取。", "Jev Clipboard Guard", false)
+                    if @notifyOnResult == "是" {
+                        showNotification("已用空格覆盖剪切板。注意：如果目标 APP 已经读取过内容，这不能撤回已发生的读取。", "Jev Clipboard Guard", false)
+                    }
             }
             stop()
         }
     }
 }
 
-// Only ordinary, non-share clipboard content is sent to Jev for a decision.
-// Non-blocking: this runs from an "App Is Opened" automation, so a modal alert
-// would stall the automation instead of telling anyone what went wrong.
-if @apiKey == "REPLACE_WITH_JEV_API_KEY" || @apiKey == "" {
-    showNotification("还没有设置 Jev API Key，本次不检查。请在快捷指令里把 apiKey 改成你自己的 Key（jev.typesafe.ai 创建）。", "Jev Clipboard Guard", false)
+// ─────────────────────────────────────────────────────────────
+//  5. 纯本地模式：不再把普通文本发给 Jev
+// ─────────────────────────────────────────────────────────────
+if @sendToJev != "是" {
+    // 本地规则都没命中、纯本地模式下就静默结束，不再弹通知。
     stop()
 }
 
+const apiKeyCheck = "{@apiKey}"
+if apiKeyCheck == "" || apiKeyCheck == "REPLACE_WITH_JEV_API_KEY" {
+    if @notifyOnResult == "是" {
+        showNotification("还没有设置 Jev API Key，本次不检查。运行一次并粘贴 Key 即可（会存进「储存空间」，以后不用再填）。", "Jev Clipboard Guard", false)
+    }
+    stop()
+}
+
+// Only ordinary, non-share clipboard content is sent to Jev for a decision.
 @response = jsonRequest(@apiUrl, "POST", {
     "model": "jev-latest",
     "state": {
@@ -201,18 +353,32 @@ const confidenceValue = getValue(decisionDictionary, "confidence")
 const confidenceNumber = number(confidenceValue)
 
 if @decision == "DENY" {
-    setClipboard(@blankClipboard, true)
-    showNotification("Jev 判定：拒绝。已用空格覆盖剪切板。", "Jev Clipboard Guard", false)
+    if @onSensitive == "只提醒不动" {
+        if @notifyOnResult == "是" {
+            showNotification("Jev 判定：拒绝。按设置未改动剪贴板，请自行清理。", "Jev Clipboard Guard", false)
+        }
+    } else {
+        setClipboard(@blankClipboard, true)
+        if @notifyOnResult == "是" {
+            showNotification("Jev 判定：拒绝。已用空格覆盖剪贴板。", "Jev Clipboard Guard", false)
+        }
+    }
 } else {
     if @decision == "ALLOW" && confidenceNumber >= 0.85 {
-        showNotification("Jev 判定：允许。剪切板保持不变。", "Jev Clipboard Guard", false)
+        if @notifyOnResult == "是" {
+            showNotification("Jev 判定：允许。剪贴板保持不变。", "Jev Clipboard Guard", false)
+        }
     } else {
         menu "Jev 无法高置信度自动放行，请选择" {
-            item "保留剪切板（本次允许）":
-                showNotification("你已确认保留剪切板。", "Jev Clipboard Guard", false)
-            item "清空剪切板（本次拒绝）":
+            item "保留剪贴板（本次允许）":
+                if @notifyOnResult == "是" {
+                    showNotification("你已确认保留剪贴板。", "Jev Clipboard Guard", false)
+                }
+            item "清空剪贴板（本次拒绝）":
                 setClipboard(@blankClipboard, true)
-                showNotification("你已拒绝；剪切板已用空格覆盖。", "Jev Clipboard Guard", false)
+                if @notifyOnResult == "是" {
+                    showNotification("你已拒绝；剪贴板已用空格覆盖。", "Jev Clipboard Guard", false)
+                }
         }
     }
 }
