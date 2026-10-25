@@ -10,18 +10,18 @@ checks = {
     "API endpoint remains editable": '@apiUrl =' in s,
     "API key is read from Shortcuts Storage (Store Content)": (
         "action 'is.workflow.actions.getstoredcontent' loadStore" in s
-        and 'loadStore("jev.apiKey", true)' in s
+        and 'loadStore("Jev API 密钥", true)' in s
         and '#question jevApiKey' not in s
     ),
     "first run asks for the key once and persists it": (
         "action 'is.workflow.actions.setstoredcontent' saveStore" in s
-        and "saveStore(\"jev.apiKey\", enteredKeyText, true)" in s
+        and 'saveStore("Jev API 密钥", enteredKeyText, true)' in s
     ),
     "other config keys are also read from Storage": (
-        'loadStore("jev.targetApps", true)' in s
-        and 'loadStore("jev.notifyOnResult", true)' in s
-        and 'loadStore("jev.onSensitive", true)' in s
-        and 'loadStore("jev.sendToJev", true)' in s
+        'loadStore("要检查的 App", true)' in s
+        and 'loadStore("每次弹通知", true)' in s
+        and 'loadStore("敏感内容处理", true)' in s
+        and 'loadStore("允许发送给 Jev", true)' in s
     ),
     "unconfigured API key stops before any network request": (
         s.index('if apiKeyCheck == "" || apiKeyCheck == "REPLACE_WITH_JEV_API_KEY"') < s.index('@response = jsonRequest')
@@ -34,7 +34,7 @@ checks = {
     ),
     "ShortcutInput stays as the fallback for explicit-input runs": (
         'const inputAppText = "{ShortcutInput}"' in s
-        and 'const afterInputText = "{@currentApp}"' in s
+        and 'const resolvedAppText = "{@currentApp}"' in s
         and 'if detectedAppText == "" || isSelfAppText != "" {' in s
     ),
     "no noinput guard aborts App Is Opened automations": (

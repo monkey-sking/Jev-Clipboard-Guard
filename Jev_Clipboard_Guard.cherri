@@ -56,49 +56,76 @@ action 'is.workflow.actions.ask' askInput(text prompt: 'WFAskActionPrompt', text
 // 注意：Cherri v2.3.0 的 "const x = action()" 赋值形态会让该 action 的 identifier
 // 丢失（退化为 is.workflow.actions.rawaction），所以这里全部改用 "@var = action()"
 // 赋值形态 + 文本插值比较，动作才会正确生成。
-// 读一次"是否已经配置过"。五项里 Key 是必须的，其余按需。
+
+// 内部常量（用户不用动）
+@apiKey = ""
+@apiUrl = "https://api.typesafe.ai/v1/systemone"
+@about = "Jev Clipboard Guard · 由 Aion 提供 · https://aion.7caifei.com"
+@blankClipboard = " "
+
+// ─────────────────────────────────────────────────────────────
+//  1. 先识别"这次是谁在运行"（不弹任何界面）
+// ─────────────────────────────────────────────────────────────
+// 「获取当前 App」返回执行瞬间的前台 App：自动化触发时就是目标 App；
+// 从快捷指令 App 里手点时前台是快捷指令自己，据此区分"手动 / 自动"。
+// 必须放在最前面：后面的设置引导只在手动运行时才允许弹窗。
+const detectedAppRaw = getCurrentApp("Current")
+const detectedApp = getName(detectedAppRaw)
+const detectedAppText = "{detectedApp}"
+const isSelfApp = matchText('(?i)^(快捷指令|Shortcuts|Shortcut)$', detectedAppText)
+const isSelfAppText = "{isSelfApp}"
+const inputAppText = "{ShortcutInput}"
+
+// ─────────────────────────────────────────────────────────────
+//  储存空间：读配置。第一次使用且是"手动运行"时才引导提问。
+// ─────────────────────────────────────────────────────────────
 const storedApiKey = loadStore("Jev API 密钥", true)
 const storedApiKeyText = "{storedApiKey}"
 
-// ── 第一次运行：一次性引导，用大白话问，不让人改代码 ──
 if storedApiKeyText == "" {
-    showNotification("第一次使用需要 3 步设置，大约 30 秒。现在开始。", "Jev 剪贴板守卫 · 设置", false)
+    // 只有"人在快捷指令 App 里手动运行"才允许弹输入框：
+    // 自动化触发时绝不能弹任何 UI，否则自动化会卡在界面上。
+    if detectedAppText == "" || isSelfAppText != "" {
+        showNotification("第一次使用需要 3 步设置，大约 30 秒。现在开始。", "Jev 剪贴板守卫 · 设置", false)
 
-    const enteredKey = askInput("第 1 步 / 共 3 步：请粘贴你的 Jev API Key（只需设置这一次，以后不用再填）")
-    const enteredKeyText = "{enteredKey}"
-    if enteredKeyText == "" {
-        showNotification("没有填 API Key，设置未完成。下次运行会再问你一次。", "Jev 剪贴板守卫 · 设置", false)
+        const enteredKey = askInput("第 1 步 / 共 3 步：请粘贴你的 Jev API Key（只需设置这一次，以后不用再填）")
+        const enteredKeyText = "{enteredKey}"
+        if enteredKeyText == "" {
+            showNotification("没有填 API Key，设置未完成。下次手动运行会再问你一次。", "Jev 剪贴板守卫 · 设置", false)
+            stop()
+        }
+        saveStore("Jev API 密钥", enteredKeyText, true)
+        @apiKey = enteredKeyText
+
+        const enteredApps = askInput("第 2 步 / 共 3 步：剪贴板要对哪些 App 做检查？用逗号隔开（留空 = 用默认的 阿里巴巴,电话,微信）", "阿里巴巴,电话,微信")
+        const enteredAppsText = "{enteredApps}"
+        if enteredAppsText != "" {
+            saveStore("要检查的 App", enteredAppsText, true)
+            @targetApps = splitText(enteredAppsText, ",")
+        }
+
+        const enteredMode = askInput("第 3 步 / 共 3 步：命中密码、验证码这类敏感内容时怎么办？填 1 或 2⏎1 = 只提醒我，不动剪贴板⏎2 = 直接用空格覆盖掉（更安全）", "1")
+        const enteredModeText = "{enteredMode}"
+        if enteredModeText == "2" {
+            saveStore("敏感内容处理", "覆盖剪贴板", true)
+            @onSensitive = "覆盖剪贴板"
+        } else {
+            saveStore("敏感内容处理", "只提醒不动", true)
+            @onSensitive = "只提醒不动"
+        }
+
+        saveStore("每次弹通知", "是", true)
+        saveStore("允许发送给 Jev", "是", true)
+        @notifyOnResult = "是"
+        @sendToJev = "是"
+
+        showNotification("设置完成。以后每次打开目标 App 会自动检查剪贴板。想改设置：删掉「储存空间」里的 Jev API 密钥 再运行一次即可。", "Jev 剪贴板守卫 · 设置", false)
+    } else {
+        // 自动化先于设置触发：不弹框，只提示一次然后静默结束。
+        showNotification("还没完成设置：请先手动运行一次「Jev Clipboard Guard」，按提示填 3 步。", "Jev 剪贴板守卫", false)
         stop()
     }
-    saveStore("Jev API 密钥", enteredKeyText, true)
-    @apiKey = enteredKeyText
-
-    const enteredApps = askInput("第 2 步 / 共 3 步：剪贴板要对哪些 App 做检查？用逗号隔开（留空 = 用默认的 阿里巴巴,电话,微信）", "阿里巴巴,电话,微信")
-    const enteredAppsText = "{enteredApps}"
-    if enteredAppsText != "" {
-        saveStore("要检查的 App", enteredAppsText, true)
-        @targetApps = splitText(enteredAppsText, ",")
-    }
-
-    const enteredMode = askInput("第 3 步 / 共 3 步：命中密码、验证码这类敏感内容时怎么办？填 1 或 2⏎1 = 只提醒我，不动剪贴板⏎2 = 直接用空格覆盖掉（更安全）", "1")
-    const enteredModeText = "{enteredMode}"
-    if enteredModeText == "2" {
-        saveStore("敏感内容处理", "覆盖剪贴板", true)
-        @onSensitive = "覆盖剪贴板"
-    } else {
-        saveStore("敏感内容处理", "只提醒不动", true)
-        @onSensitive = "只提醒不动"
-    }
-
-    // 通知与联网这两个开关默认给最稳的值：弹通知 + 允许联网判断。
-    saveStore("每次弹通知", "是", true)
-    saveStore("允许发送给 Jev", "是", true)
-    @notifyOnResult = "是"
-    @sendToJev = "是"
-
-    showNotification("设置完成。以后每次打开目标 App 会自动检查剪贴板。想改设置：删掉「储存空间」里的 Jev API 密钥 再运行一次即可。", "Jev 剪贴板守卫 · 设置", false)
 } else {
-    // ── 已配置过：静默读取，不打扰 ──
     @apiKey = storedApiKeyText
 }
 
@@ -137,28 +164,11 @@ if storedSendToJevText != "" {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  以下为内部常量
+//  4. 确定目标 App
 // ─────────────────────────────────────────────────────────────
-
-@apiKey = ""
-@about = "Jev Clipboard Guard · 由 Aion 提供 · https://aion.7caifei.com"
-@blankClipboard = " "
-
-// ─────────────────────────────────────────────────────────────
-//  1. 确定目标 App
-// ─────────────────────────────────────────────────────────────
-// 优先用「获取当前 App」：它返回执行瞬间的前台 App，适用于「App 已打开」自动化
-// 以及「轻点背面 / 操作按钮」这类不切换前台的触发方式。
-// 手动从「快捷指令」App 里点时前台就是快捷指令自己，此时让用户从列表里选。
-const detectedAppRaw = getCurrentApp("Current")
-const detectedApp = getName(detectedAppRaw)
-const detectedAppText = "{detectedApp}"
-const isSelfApp = matchText('(?i)^(快捷指令|Shortcuts|Shortcut)$', detectedAppText)
-const isSelfAppText = "{isSelfApp}"
-const inputAppText = "{ShortcutInput}"
 @currentApp = detectedAppText
 if detectedAppText == "" || isSelfAppText != "" {
-    // 手动运行并显式传参时以传入值为准；否则让用户从列表里选。
+    // 手动运行并显式传参时以传入值为准。
     @currentApp = inputAppText
 }
 // 只有"人在快捷指令 App 里手动点运行"这一种情况才弹列表（前台是快捷指令自己）。
