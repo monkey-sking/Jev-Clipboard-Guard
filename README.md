@@ -1,5 +1,9 @@
 # Jev Clipboard Guard
 
+<!-- badges:start -->
+[![Last commit](https://img.shields.io/github/last-commit/monkey-sking/Jev-Clipboard-Guard?style=flat-square)](https://github.com/monkey-sking/Jev-Clipboard-Guard/commits/main) [![Python](https://img.shields.io/github/languages/top/monkey-sking/Jev-Clipboard-Guard?style=flat-square)](https://github.com/monkey-sking/Jev-Clipboard-Guard/search?l=Python) [![views](https://hits.sh/github.com/monkey-sking/Jev-Clipboard-Guard.svg?style=flat-square&label=views&color=0e75b6)](https://github.com/monkey-sking/Jev-Clipboard-Guard)
+<!-- badges:end -->
+
 > Made by the team behind [Aion](https://aion.7caifei.com/?utm_source=github&utm_medium=readme&utm_campaign=jev_clipboard_guard) — an AI-powered desktop assistant for everyday workflows.
 
 一个使用 Apple「快捷指令」和 Jev 决策 API 的 iPhone 自动化原型。源文件使用 [Cherri](https://github.com/electrikmilk/cherri) 编写，并通过 GitHub Actions 编译。
